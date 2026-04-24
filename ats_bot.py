@@ -43,55 +43,62 @@ def extract_text_from_pdf(file_bytes):
         logger.error(f"PDF error: {e}")
         return None
 
-def analyze_part(resume_text, part_name):
+def analyze_resume(resume_text):
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
         "Content-Type": "application/json"
     }
 
-    prompts = {
-        "ats_score": f"Оцени общий балл ATS резюме от 0 до 100. Ответь ТОЛЬКО числом. БЕЗ ТЕКСТА. БЕЗ ЗВЁЗДОЧЕК.\n\nРезюме:\n{resume_text[:4000]}",
-        "overall_score": f"Оцени общее качество резюме от 0 до 100. Ответь ТОЛЬКО числом. БЕЗ ТЕКСТА. БЕЗ ЗВЁЗДОЧЕК.\n\nРезюме:\n{resume_text[:4000]}",
-        "metrics_with_fixes": f"""Оцени 6 метрик резюме от 0 до 100. Для каждой метрики напиши оценку и конкретную рекомендацию по улучшению.
+    prompt = f"""Ты — старший HR-рекрутер и эксперт по ATS с 10+ лет опыта в России, знакомый с текущими алгоритмами парсинга и требованиями hh.ru (2026). Твоя задача — проанализировать предоставленное резюме кандидата и дать развернутую, максимально полезную обратную связь, чтобы сделать резюме идеальным для отклика на вакансии в России и прохода через ATS hh.ru.
 
-Метрики:
-1. Ключевые слова
-2. Достижения с цифрами
-3. Форматирование
-4. Длина резюме
-5. Навыки (hard skills)
-6. Грамматика и стиль
-
-ФОРМАТ ОТВЕТА (строго):
-Метрика: X/100
-Рекомендация: текст...
+Выполни следующие шаги строго по порядку. НЕ ИСПОЛЬЗУЙ ЗВЁЗДОЧКИ. Используй HTML-теги <b>текст</b> для жирного.
 
 Резюме:
-{resume_text[:4000]}""",
-        "final_version": f"Напиши финальную версию резюме в plain text. БЕЗ ЗВЁЗДОЧЕК. БЕЗ HTML.\n\nРезюме:\n{resume_text[:4000]}"
-    }
+{resume_text[:6000]}
+
+1. АНАЛИЗ ИСХОДНОГО РЕЗЮМЕ
+Укажи сильные и слабые стороны по структуре, контенту, ключевым словам и читабельности для рекрутера и парсера.
+
+2. ATS-ОЦЕНКА (от 0 до 100)
+Выстави объективную оценку. Учитывай: отсутствие таблиц, колонок, сложной верстки, графики, иконок. Наличие ключевых слов. Чистый plain text. Стандартные названия разделов. Отсутствие фото.
+Сними баллы: фото -5, колонтитулы -3, графика/иконки -3, таблицы -5, нестандартные заголовки -2, слишком длинное -3. Дай рекомендации.
+
+3. ОБЩАЯ ОЦЕНКА РЕЗЮМЕ (от 0 до 100)
+Оцени контент и подачу. Учитывай: четкость цели, измеримые достижения с метриками, action-verbs, обратная хронология, группировка навыков, наличие разделов, объем страниц, отсутствие общих фраз.
+Сними баллы: нет метрик -5 за буллет, общие фразы -3, нет цели -3, нет группировки навыков -2, превышение объема -3.
+
+4. ТРИ ВАРИАНТА ЗАГОЛОВКА РЕЗЮМЕ (для поля «Желаемая должность» на hh.ru)
+
+5. БЛОК ATS-READY: 8-12 РЕЛЕВАНТНЫХ КЛЮЧЕВЫХ СЛОВ/ФРАЗ
+
+6. ТОЧЕЧНЫЕ ПРАВКИ ФОРМУЛИРОВОК (минимум 6-10 мест)
+Формат: Исходный пункт → Исправленный пункт
+
+7. РЕКОМЕНДАЦИИ ПО ФОРМАТИРОВАНИЮ И ЗАГРУЗКЕ НА hh.ru
+Какие поля заполнить, как вставить ссылки, какие фильтры выбрать, как оформить навыки. Предупреждение: никакого жирного шрифта, таблиц, иконок — только plain text.
+
+8. ОЦЕНКА СООТВЕТСТВИЯ (MATCH SCORE) ДО 100%
+Предложи 3 типа вакансий для поиска. Укажи, какие фразы/навыки добавить или убрать.
+
+9. ТРИ ВЕРСИИ РЕЗЮМЕ
+Версия А (plain text для hh.ru, не более 2 стр.)
+Версия Б (сопроводительное письмо: summary 3-5 строк + 3 буллета достижений)
+Версия В (для Word/PDF — структурные заголовки, группировка навыков, без таблиц)
+
+10. ФИНАЛЬНЫЙ ВЕРДИКТ
+Краткое резюме: готово ли к рассылке, топ-3 критических исправлений, прогноз конверсии «Просмотр → Приглашение»."""
 
     payload = {
         "model": "deepseek-chat",
-        "messages": [{"role": "user", "content": prompts[part_name]}],
+        "messages": [{"role": "user", "content": prompt}],
         "temperature": 0,
-        "max_tokens": 2500
+        "max_tokens": 4500
     }
 
-    response = requests.post(url, headers=headers, json=payload, timeout=120)
+    response = requests.post(url, headers=headers, json=payload, timeout=180)
     response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"].strip()
-
-def get_score_emoji(score):
-    if score >= 90:
-        return "🟢"
-    elif score >= 70:
-        return "🟡"
-    elif score >= 50:
-        return "🟠"
-    else:
-        return "🔴"
+    return response.json()["choices"][0]["message"]["content"]
 
 def show_main_menu(chat_id):
     keyboard = {
@@ -103,10 +110,8 @@ def show_main_menu(chat_id):
     }
     send_message(chat_id,
         "📄 <b>ResumeEasy Bot</b>\n\n"
-        "Я проведу ATS-анализ вашего резюме.\n\n"
-        "▸ Нажмите «Загрузить резюме» и отправьте PDF\n"
-        "▸ Получите общий балл, разбор по 6 метрикам с рекомендациями\n"
-        "▸ И финальную версию резюме",
+        "Я проведу полный ATS-анализ вашего резюме.\n\n"
+        "Нажмите «Загрузить резюме» и отправьте PDF.",
         reply_markup=keyboard)
 
 @app.route('/webhook', methods=['POST'])
@@ -122,12 +127,10 @@ def webhook():
         stats["total_requests"] += 1
         text = data['message'].get('text', '')
 
-        # Админ-команда (скрытая)
         if text == '/admin':
             send_message(chat_id, f"📊 Статистика\nПользователей: {len(stats['users'])}\nЗапросов: {stats['total_requests']}")
             return 'ok', 200
 
-        # Обработка команд
         if text == '/start':
             show_main_menu(chat_id)
             return 'ok', 200
@@ -139,12 +142,14 @@ def webhook():
                 "2️⃣ Отправьте PDF-файл\n"
                 "3️⃣ Дождитесь анализа (20-40 секунд)\n\n"
                 "📊 <b>Что вы получите:</b>\n"
-                "• Общий балл ATS (0-100)\n"
+                "• ATS-оценку (0-100)\n"
                 "• Общую оценку резюме (0-100)\n"
-                "• Детальный разбор по 6 метрикам с рекомендациями\n"
-                "• Финальную версию резюме\n\n"
-                "🔄 Для нового резюме нажмите «Загрузить другое резюме»\n"
-                "🔙 Для возврата в главное меню нажмите «Главное меню»")
+                "• Детальный разбор с рекомендациями\n"
+                "• Три варианта заголовка\n"
+                "• Ключевые слова (8-12)\n"
+                "• Точечные правки (6-10)\n"
+                "• Три версии резюме\n\n"
+                "🔄 Для нового резюме нажмите «Загрузить другое резюме»")
             return 'ok', 200
 
         if text == '📊 Статистика':
@@ -162,38 +167,27 @@ def webhook():
             send_message(chat_id, "📎 Отправьте PDF-файл с резюме.")
             return 'ok', 200
 
-        # Обработка кнопок после загрузки резюме
-        if text in ['📊 Общий балл ATS', '📈 Общая оценка резюме', '🔍 Детальный разбор с рекомендациями', '✅ Финальная версия резюме']:
+        # Обработка кнопки "Полный анализ"
+        if text == '🔍 Полный ATS-анализ':
             resume_text = resume_cache.get(chat_id)
             if not resume_text:
                 show_main_menu(chat_id)
                 send_message(chat_id, "❌ Сессия истекла. Загрузите резюме заново.")
                 return 'ok', 200
 
-            if text == '📊 Общий балл ATS':
-                score = analyze_part(resume_text, "ats_score")
-                try:
-                    score_int = int(score)
-                    send_message(chat_id, f"{get_score_emoji(score_int)} <b>Общий балл ATS: {score_int}/100</b>")
-                except:
-                    send_message(chat_id, f"📊 Общий балл ATS: {score}")
-
-            elif text == '📈 Общая оценка резюме':
-                score = analyze_part(resume_text, "overall_score")
-                try:
-                    score_int = int(score)
-                    send_message(chat_id, f"{get_score_emoji(score_int)} <b>Общая оценка резюме: {score_int}/100</b>")
-                except:
-                    send_message(chat_id, f"📈 Общая оценка: {score}")
-
-            elif text == '🔍 Детальный разбор с рекомендациями':
-                result = analyze_part(resume_text, "metrics_with_fixes")
-                send_message(chat_id, f"🔍 <b>Детальный разбор по метрикам</b>\n\n{result}")
-
-            elif text == '✅ Финальная версия резюме':
-                result = analyze_part(resume_text, "final_version")
-                send_message(chat_id, f"✅ <b>Финальная версия резюме</b>\n\n{result}")
-
+            send_message(chat_id, "🔍 <b>Выполняю полный анализ...</b>\n⏳ 30-60 секунд")
+            
+            try:
+                analysis = analyze_resume(resume_text)
+                if len(analysis) > 4096:
+                    for i in range(0, len(analysis), 4096):
+                        send_message(chat_id, analysis[i:i+4096])
+                else:
+                    send_message(chat_id, analysis)
+            except Exception as e:
+                logger.error(f"Analysis error: {e}")
+                send_message(chat_id, f"❌ Ошибка анализа: {str(e)[:200]}")
+            
             return 'ok', 200
 
         # Обработка PDF
@@ -213,22 +207,20 @@ def webhook():
 
             resume_text = extract_text_from_pdf(file_content)
             if not resume_text or len(resume_text.split()) < 50:
-                send_message(chat_id, "❌ Не удалось извлечь текст из PDF.")
+                send_message(chat_id, "❌ Не удалось извлечь текст из PDF. Убедитесь, что файл не отсканирован.")
                 return 'ok', 200
 
             resume_cache[chat_id] = resume_text
 
             keyboard = {
                 "keyboard": [
-                    ["📊 Общий балл ATS", "📈 Общая оценка резюме"],
-                    ["🔍 Детальный разбор с рекомендациями"],
-                    ["✅ Финальная версия резюме"],
+                    ["🔍 Полный ATS-анализ"],
                     ["📄 Загрузить другое резюме", "🔙 Главное меню"]
                 ],
                 "resize_keyboard": True
             }
 
-            send_message(chat_id, "✅ <b>Резюме загружено!</b>\n\nВыберите, что хотите получить:", reply_markup=keyboard)
+            send_message(chat_id, "✅ <b>Резюме загружено!</b>\n\nНажмите «Полный ATS-анализ» для детального разбора по 10 пунктам.", reply_markup=keyboard)
             return 'ok', 200
 
         return 'ok', 200
