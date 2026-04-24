@@ -26,9 +26,11 @@ def send_message(chat_id, text, reply_markup=None):
     if reply_markup:
         payload["reply_markup"] = json.dumps(reply_markup)
     try:
-        requests.post(url, json=payload, timeout=30)
+        response = requests.post(url, json=payload, timeout=30)
+        return response.json()
     except Exception as e:
         logger.error(f"Send error: {e}")
+        return None
 
 def extract_text_from_pdf(file_bytes):
     try:
@@ -84,15 +86,15 @@ def analyze_resume(resume_text):
 3️⃣ ГОТОВАЯ ВЕРСИЯ ДЛЯ hh.ru
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-(текст в plain text, обратная хронология, 2-4 достижения на место с цифрами)
+(текст в plain text, обратная хронология, достижения с цифрами)
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 4️⃣ КЛЮЧЕВЫЕ СЛОВА И ЗАГОЛОВКИ
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-<b>Ключевые слова (8-12):</b> слово1, слово2, слово3...
+<b>Ключевые слова (8-12):</b> слово1, слово2...
 
-<b>Варианты заголовка резюме:</b>
+<b>Варианты заголовка:</b>
 1. ...
 2. ...
 3. ...
@@ -101,9 +103,8 @@ def analyze_resume(resume_text):
 5️⃣ ТОЧЕЧНЫЕ ПРАВКИ (6-10)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. исправление
-2. исправление
-...
+1. ...
+2. ...
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 6️⃣ РЕКОМЕНДАЦИИ ПО ЗАГРУЗКЕ НА hh.ru
@@ -111,7 +112,6 @@ def analyze_resume(resume_text):
 
 1. ...
 2. ...
-...
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 7️⃣ ФИНАЛЬНАЯ ВЕРСИЯ РЕЗЮМЕ
@@ -119,7 +119,7 @@ def analyze_resume(resume_text):
 
 (текст в plain text, готовый для копирования)
 
-ВСЕ 7 ПУНКТОВ ДОЛЖНЫ БЫТЬ В ОТВЕТЕ. НЕ СОКРАЩАЙ. НЕ ПРОПУСКАЙ."""
+ВСЕ 7 ПУНКТОВ ДОЛЖНЫ БЫТЬ В ОТВЕТЕ. НЕ СОКРАЩАЙ."""
 
     payload = {
         "model": "deepseek-chat",
@@ -172,14 +172,7 @@ def webhook():
                 "1️⃣ Нажмите «Загрузить резюме»\n"
                 "2️⃣ Отправьте PDF-файл\n"
                 "3️⃣ Дождитесь анализа (20-40 секунд)\n\n"
-                "📊 <b>Что вы получите:</b>\n"
-                "• Общий балл ATS (0-100)\n"
-                "• Разбор по 6 метрикам\n"
-                "• Готовую версию для hh.ru\n"
-                "• Ключевые слова и заголовки\n"
-                "• Точечные правки\n"
-                "• Рекомендации\n"
-                "• Финальную версию")
+                "📊 Вы получите: общий балл, 6 метрик, готовую версию для hh.ru, ключевые слова, правки, рекомендации, финальную версию")
             return 'ok', 200
 
         if text == '📄 Загрузить резюме':
@@ -193,7 +186,7 @@ def webhook():
                 send_message(chat_id, "❌ Отправьте PDF файл.")
                 return 'ok', 200
 
-            send_message(chat_id, "🔍 <b>Анализирую резюме...</b>\n⏳ Это займёт 20-40 секунд.")
+            send_message(chat_id, "🔍 <b>Анализирую резюме...</b>\n⏳ 20-40 секунд")
 
             # Скачиваем файл
             file_id = doc['file_id']
@@ -205,18 +198,22 @@ def webhook():
             # Извлекаем текст
             resume_text = extract_text_from_pdf(file_content)
             if not resume_text or len(resume_text.split()) < 50:
-                send_message(chat_id, "❌ Не удалось извлечь текст из PDF. Убедитесь, что файл не отсканирован.")
+                send_message(chat_id, "❌ Не удалось извлечь текст из PDF.")
                 return 'ok', 200
 
             # Анализируем
-            analysis = analyze_resume(resume_text)
-
-            # Отправляем результат
-            if len(analysis) > 4096:
-                for i in range(0, len(analysis), 4096):
-                    send_message(chat_id, analysis[i:i+4096])
-            else:
-                send_message(chat_id, analysis)
+            try:
+                analysis = analyze_resume(resume_text)
+                # Отправляем результат
+                if len(analysis) > 4096:
+                    for i in range(0, len(analysis), 4096):
+                        send_message(chat_id, analysis[i:i+4096])
+                else:
+                    send_message(chat_id, analysis)
+            except Exception as e:
+                logger.error(f"DeepSeek error: {e}")
+                send_message(chat_id, f"❌ Ошибка при анализе: {str(e)[:200]}")
+                return 'ok', 200
 
             return 'ok', 200
 
@@ -224,7 +221,6 @@ def webhook():
 
     except Exception as e:
         logger.error(f"Webhook error: {e}")
-        send_message(chat_id, "❌ Произошла ошибка. Попробуйте ещё раз.")
         return 'error', 500
 
 @app.route('/', methods=['GET', 'HEAD'])
