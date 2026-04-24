@@ -51,20 +51,20 @@ def analyze_part(resume_text, part_name):
     }
 
     prompts = {
-        "ats_score": f"Оцени общий балл ATS резюме от 0 до 100. Ответь ТОЛЬКО числом.\n\nРезюме:\n{resume_text[:4000]}",
-        "overall_score": f"Оцени общее качество резюме от 0 до 100 (структура, содержание, читабельность). Ответь ТОЛЬКО числом.\n\nРезюме:\n{resume_text[:4000]}",
-        "metrics": f"Оцени 6 метрик резюме от 0 до 100. Ответь 6 числами через запятую. Метрики: Ключевые слова, Достижения с цифрами, Форматирование, Длина резюме, Навыки, Грамматика.\n\nРезюме:\n{resume_text[:4000]}",
-        "hh_version": f"Создай готовую версию резюме для hh.ru в plain text. Без звёздочек. Обратная хронология, достижения с цифрами.\n\nРезюме:\n{resume_text[:4000]}",
-        "keywords": f"Выдай 8-12 ключевых слов через запятую и 3 варианта заголовка резюме.\n\nРезюме:\n{resume_text[:4000]}",
-        "fixes": f"Напиши 6-10 точечных правок в формате: Пункт 1: исправление.\n\nРезюме:\n{resume_text[:4000]}",
-        "recommendations": f"Напиши 5-7 рекомендаций по загрузке резюме на hh.ru.\n\nРезюме:\n{resume_text[:4000]}",
-        "final_version": f"Напиши финальную версию резюме в plain text, готовую для копирования.\n\nРезюме:\n{resume_text[:4000]}"
+        "ats_score": f"Оцени общий балл ATS резюме от 0 до 100. Ответь ТОЛЬКО числом. БЕЗ ТЕКСТА. БЕ ЗВЁЗДОЧЕК.\n\nРезюме:\n{resume_text[:4000]}",
+        "overall_score": f"Оцени общее качество резюме от 0 до 100. Ответь ТОЛЬКО числом. БЕЗ ТЕКСТА. БЕЗ ЗВЁЗДОЧЕК.\n\nРезюме:\n{resume_text[:4000]}",
+        "metrics": f"Оцени 6 метрик от 0 до 100. Ответь ТОЛЬКО 6 числами через запятую. БЕЗ ТЕКСТА. Метрики: Ключевые слова, Достижения, Форматирование, Длина, Навыки, Грамматика.\n\nРезюме:\n{resume_text[:4000]}",
+        "hh_version": f"Создай готовую версию резюме для hh.ru. ТОЛЬКО ТЕКСТ. БЕЗ ЗВЁЗДОЧЕК. БЕЗ HTML. Обратная хронология, достижения с цифрами.\n\nРезюме:\n{resume_text[:4000]}",
+        "keywords": f"Выдай 8-12 ключевых слов через запятую. Затем на новой строке 3 варианта заголовка. БЕЗ ЗВЁЗДОЧЕК.\n\nРезюме:\n{resume_text[:4000]}",
+        "fixes": f"Напиши 6-10 точечных правок. Каждая правка с новой строки. БЕЗ ЗВЁЗДОЧЕК.\n\nРезюме:\n{resume_text[:4000]}",
+        "recommendations": f"Напиши 5-7 рекомендаций по загрузке на hh.ru. БЕЗ ЗВЁЗДОЧЕК.\n\nРезюме:\n{resume_text[:4000]}",
+        "final_version": f"Напиши финальную версию резюме в plain text. БЕЗ ЗВЁЗДОЧЕК. БЕЗ HTML.\n\nРезюме:\n{resume_text[:4000]}"
     }
 
     payload = {
         "model": "deepseek-chat",
         "messages": [{"role": "user", "content": prompts[part_name]}],
-        "temperature": 0.2,
+        "temperature": 0,
         "max_tokens": 2000
     }
 
@@ -101,14 +101,14 @@ def webhook():
 
         if text == '/start':
             keyboard = {"keyboard": [["📄 Загрузить резюме"], ["❓ Помощь"]], "resize_keyboard": True}
-            send_message(chat_id, "📄 <b>ResumeEasy Bot</b>\n\nНажмите «Загрузить резюме» и отправьте PDF.", reply_markup=keyboard)
+            send_message(chat_id, "📄 ResumeEasy Bot\n\nНажмите «Загрузить резюме» и отправьте PDF.", reply_markup=keyboard)
             return 'ok', 200
 
         if text == '❓ Помощь':
-            send_message(chat_id, "📘 Как работает бот:\n1. Загрузите PDF\n2. Нажимайте кнопки — получайте результаты")
+            send_message(chat_id, "📘 Как работает бот:\n1. Загрузите PDF\n2. Нажимайте кнопки — получайте результаты\n3. Для нового резюме нажмите «Загрузить другое резюме»")
             return 'ok', 200
 
-        if text == '📄 Загрузить резюме':
+        if text == '📄 Загрузить резюме' or text == '📄 Загрузить другое резюме':
             send_message(chat_id, "📎 Отправьте PDF-файл с резюме.")
             return 'ok', 200
 
@@ -123,15 +123,15 @@ def webhook():
                 score = analyze_part(resume_text, "ats_score")
                 try:
                     score_int = int(score)
-                    send_message(chat_id, f"{get_score_emoji(score_int)} <b>Общий балл ATS: {score_int}/100</b>")
+                    send_message(chat_id, f"{get_score_emoji(score_int)} Общий балл ATS: {score_int}/100")
                 except:
                     send_message(chat_id, f"📊 Общий балл ATS: {score}")
 
-            elif text == '📈 Общая оценка резюме (0-100)':
+            elif text == '📈 Общая оценка резюме':
                 score = analyze_part(resume_text, "overall_score")
                 try:
                     score_int = int(score)
-                    send_message(chat_id, f"{get_score_emoji(score_int)} <b>Общая оценка резюме: {score_int}/100</b>")
+                    send_message(chat_id, f"{get_score_emoji(score_int)} Общая оценка резюме: {score_int}/100")
                 except:
                     send_message(chat_id, f"📈 Общая оценка: {score}")
 
@@ -139,7 +139,7 @@ def webhook():
                 metrics = analyze_part(resume_text, "metrics")
                 parts = metrics.split(',')
                 names = ["Ключевые слова", "Достижения", "Форматирование", "Длина", "Навыки", "Грамматика"]
-                msg = "<b>📊 Детальный разбор</b>\n\n"
+                msg = "📊 Детальный разбор\n\n"
                 for i, name in enumerate(names):
                     if i < len(parts):
                         try:
@@ -151,23 +151,23 @@ def webhook():
 
             elif text == '📄 Готовая версия для hh.ru':
                 result = analyze_part(resume_text, "hh_version")
-                send_message(chat_id, f"📄 <b>Готовая версия для hh.ru</b>\n\n{result[:4000]}")
+                send_message(chat_id, f"📄 Готовая версия для hh.ru\n\n{result[:4000]}")
 
             elif text == '🔑 Ключевые слова и заголовки':
                 result = analyze_part(resume_text, "keywords")
-                send_message(chat_id, f"🔑 <b>Ключевые слова и заголовки</b>\n\n{result}")
+                send_message(chat_id, f"🔑 Ключевые слова и заголовки\n\n{result}")
 
             elif text == '✏️ Точечные правки':
                 result = analyze_part(resume_text, "fixes")
-                send_message(chat_id, f"✏️ <b>Точечные правки</b>\n\n{result}")
+                send_message(chat_id, f"✏️ Точечные правки\n\n{result}")
 
             elif text == '💡 Рекомендации по загрузке':
                 result = analyze_part(resume_text, "recommendations")
-                send_message(chat_id, f"💡 <b>Рекомендации по загрузке на hh.ru</b>\n\n{result}")
+                send_message(chat_id, f"💡 Рекомендации по загрузке на hh.ru\n\n{result}")
 
             elif text == '✅ Финальная версия резюме':
                 result = analyze_part(resume_text, "final_version")
-                send_message(chat_id, f"✅ <b>Финальная версия резюме</b>\n\n{result}")
+                send_message(chat_id, f"✅ Финальная версия резюме\n\n{result}")
 
             return 'ok', 200
 
@@ -178,16 +178,14 @@ def webhook():
                 send_message(chat_id, "❌ Отправьте PDF файл.")
                 return 'ok', 200
 
-            send_message(chat_id, "🔍 <b>Анализирую резюме...</b>\n⏳ 20-40 секунд")
+            send_message(chat_id, "🔍 Анализирую резюме... 20-40 секунд")
 
-            # Скачиваем файл
             file_id = doc['file_id']
             file_info = requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile?file_id={file_id}").json()
             file_path = file_info['result']['file_path']
             file_url = f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{file_path}"
             file_content = requests.get(file_url, timeout=60).content
 
-            # Извлекаем текст
             resume_text = extract_text_from_pdf(file_content)
             if not resume_text or len(resume_text.split()) < 50:
                 send_message(chat_id, "❌ Не удалось извлечь текст из PDF.")
@@ -195,10 +193,9 @@ def webhook():
 
             resume_cache[chat_id] = resume_text
 
-            # Кнопки меню
             keyboard = {
                 "keyboard": [
-                    ["📊 Общий балл ATS", "📈 Общая оценка резюме (0-100)"],
+                    ["📊 Общий балл ATS", "📈 Общая оценка резюме"],
                     ["🔍 Детальный разбор по 6 метрикам"],
                     ["✏️ Точечные правки", "💡 Рекомендации по загрузке"],
                     ["🔑 Ключевые слова и заголовки"],
@@ -208,7 +205,7 @@ def webhook():
                 "resize_keyboard": True
             }
 
-            send_message(chat_id, "✅ <b>Резюме загружено!</b>\n\nВыберите, что хотите получить:", reply_markup=keyboard)
+            send_message(chat_id, "✅ Резюме загружено!\n\nВыберите, что хотите получить:", reply_markup=keyboard)
             return 'ok', 200
 
         return 'ok', 200
