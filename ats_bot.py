@@ -54,7 +54,7 @@ def webhook():
         
         # Обработка команды /start
         if 'text' in data['message'] and data['message']['text'] == '/start':
-            send_message(chat_id, "📄 *ResumeEasy Bot*\n\nОтправьте мне PDF-файл с резюме, и я проанализирую его.", parse_mode="Markdown")
+            send_message(chat_id, "📄 *ResumeEasy Bot*\n\nОтправьте мне PDF-файл с резюме, и я проанализирую его.")
             return 'ok', 200
 
         # Обработка PDF
