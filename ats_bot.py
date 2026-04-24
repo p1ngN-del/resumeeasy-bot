@@ -103,7 +103,6 @@ def get_all_stats():
     return total_users, total_analyses, avg_ats, avg_overall
 
 resume_cache = {}
-analysis_cache = {}
 
 def send_message(chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -136,21 +135,89 @@ def analyze_part(resume_text, part_name):
     }
 
     prompts = {
-        "ats_score": f"Оцени ATS-совместимость резюме от 0 до 100. Ответь ТОЛЬКО числом. БЕЗ ТЕКСТА.\n\nРезюме:\n{resume_text[:4000]}",
-        "overall_score": f"Оцени общее качество резюме от 0 до 100. Ответь ТОЛЬКО числом.\n\nРезюме:\n{resume_text[:4000]}",
-        "strengths": f"Выдели 5-7 сильных сторон этого резюме. Используй эмодзи. БЕЗ ЗВЁЗДОЧЕК.\n\nРезюме:\n{resume_text[:4000]}",
-        "weaknesses": f"Выдели 5-7 слабых сторон и ошибок в этом резюме. Используй эмодзи. БЕЗ ЗВЁЗДОЧЕК.\n\nРезюме:\n{resume_text[:4000]}",
-        "keywords": f"Выдай 8-12 ключевых слов для ATS через запятую. ТОЛЬКО слова.\n\nРезюме:\n{resume_text[:4000]}",
-        "recommendations": f"Дай 5-7 конкретных рекомендаций по улучшению резюме. Используй эмодзи.\n\nРезюме:\n{resume_text[:4000]}",
-        "final_verdict": f"Дай финальный вердикт: готово к рассылке (Да/Нет), топ-3 критических исправления, прогноз конверсии в %. Используй эмодзи.\n\nРезюме:\n{resume_text[:4000]}",
-        "rewrite": f"Перепиши резюме полностью в идеальном варианте. Сделай его сильным, с цифрами и конкретикой. Убери всю воду. Используй глаголы действия. БЕЗ ЗВЁЗДОЧЕК. Только plain text.\n\nОригинал:\n{resume_text[:4000]}"
+        "ats_score": f"Оцени ATS-совместимость резюме от 0 до 100. Каждый балл важен. Ответь ТОЛЬКО числом от 0 до 100. БЕЗ ТЕКСТА. БЕЗ СЛОВ. ТОЛЬКО ЦИФРА.\n\nРезюме:\n{resume_text[:4000]}",
+        
+        "overall_score": f"Оцени общее качество резюме от 0 до 100. Каждый балл важен. Ответь ТОЛЬКО числом от 0 до 100. БЕЗ ТЕКСТА. БЕЗ СЛОВ. ТОЛЬКО ЦИФРА.\n\nРезюме:\n{resume_text[:4000]}",
+        
+        "strengths": f"""Выдели 5-7 сильных сторон этого резюме.
+
+ПРАВИЛА:
+- НЕ используй звёздочки *
+- НЕ используй # и ###
+- НЕ используй HTML теги
+- Начинай каждый пункт с эмодзи ✅
+- Пиши обычный текст
+
+Резюме:
+{resume_text[:4000]}""",
+        
+        "weaknesses": f"""Выдели 5-7 слабых сторон и ошибок в этом резюме.
+
+ПРАВИЛА:
+- НЕ используй звёздочки *
+- НЕ используй # и ###
+- НЕ используй HTML теги
+- Начинай каждый пункт с эмодзи ❌
+- Пиши обычный текст
+
+Резюме:
+{resume_text[:4000]}""",
+        
+        "keywords": f"""Выдай 8-12 ключевых слов для ATS через запятую. ТОЛЬКО слова через запятую. БЕЗ лишнего текста. БЕЗ звёздочек.
+
+Резюме:
+{resume_text[:4000]}""",
+        
+        "recommendations": f"""Дай 5-7 конкретных рекомендаций по улучшению резюме.
+
+ПРАВИЛА:
+- НЕ используй звёздочки *
+- НЕ используй # и ###
+- НЕ используй HTML теги
+- Начинай каждый пункт с эмодзи 📌
+- Пиши обычный текст
+
+Резюме:
+{resume_text[:4000]}""",
+        
+        "final_verdict": f"""Дай финальный вердикт по резюме.
+
+ПРАВИЛА:
+- НЕ используй звёздочки *
+- НЕ используй # и ###
+- НЕ используй HTML теги
+- Используй эмодзи
+- Пиши обычный текст
+
+Включи:
+1. Готово к рассылке? (Да/Нет)
+2. Топ-3 критических исправления
+3. Прогноз конверсии (в % от 0 до 100)
+
+Резюме:
+{resume_text[:4000]}""",
+        
+        "rewrite": f"""Перепиши резюме полностью в идеальном варианте.
+
+ПРАВИЛА:
+- НЕ используй звёздочки *
+- НЕ используй # и ###
+- НЕ используй HTML теги
+- НЕ используй жирный шрифт
+- Только plain text
+- Добавь цифры и конкретику
+- Убери всю воду
+- Используй глаголы действия
+
+Оригинал:
+{resume_text[:4000]}"""
     }
 
     payload = {
         "model": "deepseek-chat",
         "messages": [{"role": "user", "content": prompts[part_name]}],
         "temperature": 0,
-        "max_tokens": 2000
+        "max_tokens": 2500
     }
 
     response = requests.post(url, headers=headers, json=payload, timeout=120)
@@ -176,10 +243,10 @@ def show_welcome_menu(chat_id):
         "resize_keyboard": True
     }
     send_message(chat_id, 
-        "✨ <b>ResumeEasy Bot</b> ✨\n\n"
-        "📄 <b>Ваш личный ATS-эксперт</b>\n"
+        "✨ Добро пожаловать в ResumeEasy Bot ✨\n\n"
+        "📄 Ваш личный ATS-эксперт\n"
         "Анализирую резюме по стандартам hh.ru 2026\n\n"
-        "🚀 <b>Нажмите «Загрузить резюме»</b>\n"
+        "🚀 Нажмите «Загрузить резюме»\n"
         "и отправьте PDF-файл\n\n"
         "⏳ Анализ занимает 30-60 секунд",
         reply_markup=keyboard)
@@ -196,8 +263,8 @@ def show_analysis_menu(chat_id):
         "resize_keyboard": True
     }
     send_message(chat_id, 
-        "✅ <b>Резюме загружено!</b>\n\n"
-        "🎯 <b>Выберите, что хотите получить:</b>\n\n"
+        "✅ Резюме загружено!\n\n"
+        "🎯 Выберите, что хотите получить:\n\n"
         "🤖 ATS-оценка — насколько резюме дружит с парсерами\n"
         "📊 Общая оценка — качество контента\n"
         "💪 Сильные стороны — что уже работает\n"
@@ -210,7 +277,7 @@ def show_analysis_menu(chat_id):
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    global resume_cache, analysis_cache
+    global resume_cache
     try:
         data = request.get_json()
         if 'message' not in data:
@@ -224,11 +291,10 @@ def webhook():
         update_user_activity(chat_id)
         text = data['message'].get('text', '')
 
-        # Админ-команда
         if text == '/admin':
             total_users, total_analyses, avg_ats, avg_overall = get_all_stats()
             send_message(chat_id, 
-                f"📊 <b>СТАТИСТИКА БОТА</b> 📊\n\n"
+                f"📊 СТАТИСТИКА БОТА 📊\n\n"
                 f"👥 Всего пользователей: {total_users}\n"
                 f"📄 Всего анализов: {total_analyses}\n"
                 f"📈 Средний ATS-балл: {avg_ats:.1f}/100\n"
@@ -236,18 +302,17 @@ def webhook():
                 f"📅 {datetime.now().strftime('%d.%m.%Y %H:%M')}")
             return 'ok', 200
 
-        # Главное меню
         if text == '/start' or text == '🏠 Главное меню':
             show_welcome_menu(chat_id)
             return 'ok', 200
 
         if text == '❓ Помощь':
             send_message(chat_id, 
-                "📘 <b>Как пользоваться ботом</b> 📘\n\n"
+                "📘 КАК ПОЛЬЗОВАТЬСЯ БОТОМ 📘\n\n"
                 "1️⃣ Нажмите «Загрузить резюме»\n"
                 "2️⃣ Отправьте PDF-файл\n"
                 "3️⃣ Дождитесь анализа (30-60 секунд)\n\n"
-                "📊 <b>Что вы получите:</b>\n"
+                "📊 ЧТО ВЫ ПОЛУЧИТЕ:\n"
                 "• ATS-оценка (0-100)\n"
                 "• Общая оценка резюме\n"
                 "• Сильные и слабые стороны\n"
@@ -262,7 +327,7 @@ def webhook():
             emoji_ats = get_score_emoji(avg_ats)
             emoji_overall = get_score_emoji(avg_overall)
             send_message(chat_id, 
-                f"📊 <b>ВАША СТАТИСТИКА</b> 📊\n\n"
+                f"📊 ВАША СТАТИСТИКА 📊\n\n"
                 f"📄 Анализов проведено: {total_analyses}\n"
                 f"{emoji_ats} Средний ATS-балл: {avg_ats:.1f}/100\n"
                 f"{emoji_overall} Средняя общая оценка: {avg_overall:.1f}/100")
@@ -280,48 +345,47 @@ def webhook():
                 send_message(chat_id, "❌ Сессия истекла. Загрузите резюме заново.")
                 return 'ok', 200
 
-            # Маппинг кнопок на функции
             if text == '🤖 ATS-оценка':
                 result = analyze_part(resume_text, "ats_score")
                 try:
                     score = int(result)
                     emoji = get_score_emoji(score)
-                    send_message(chat_id, f"{emoji} <b>ATS-оценка: {score}/100</b>")
+                    send_message(chat_id, f"{emoji} ATS-оценка: {score}/100")
                 except:
-                    send_message(chat_id, f"🤖 <b>ATS-оценка</b>\n\n{result}")
+                    send_message(chat_id, f"🤖 ATS-оценка: {result}")
 
             elif text == '📊 Общая оценка':
                 result = analyze_part(resume_text, "overall_score")
                 try:
                     score = int(result)
                     emoji = get_score_emoji(score)
-                    send_message(chat_id, f"{emoji} <b>Общая оценка: {score}/100</b>")
+                    send_message(chat_id, f"{emoji} Общая оценка: {score}/100")
                 except:
-                    send_message(chat_id, f"📊 <b>Общая оценка</b>\n\n{result}")
+                    send_message(chat_id, f"📊 Общая оценка: {result}")
 
             elif text == '💪 Сильные стороны':
                 result = analyze_part(resume_text, "strengths")
-                send_message(chat_id, f"💪 <b>СИЛЬНЫЕ СТОРОНЫ</b>\n\n{result}")
+                send_message(chat_id, f"💪 СИЛЬНЫЕ СТОРОНЫ\n\n{result}")
 
             elif text == '⚠️ Слабые стороны':
                 result = analyze_part(resume_text, "weaknesses")
-                send_message(chat_id, f"⚠️ <b>СЛАБЫЕ СТОРОНЫ</b>\n\n{result}")
+                send_message(chat_id, f"⚠️ СЛАБЫЕ СТОРОНЫ\n\n{result}")
 
             elif text == '🔑 Ключевые слова':
                 result = analyze_part(resume_text, "keywords")
-                send_message(chat_id, f"🔑 <b>КЛЮЧЕВЫЕ СЛОВА ДЛЯ ATS</b>\n\n{result}")
+                send_message(chat_id, f"🔑 КЛЮЧЕВЫЕ СЛОВА ДЛЯ ATS\n\n{result}")
 
             elif text == '💡 Рекомендации':
                 result = analyze_part(resume_text, "recommendations")
-                send_message(chat_id, f"💡 <b>РЕКОМЕНДАЦИИ ПО УЛУЧШЕНИЮ</b>\n\n{result}")
+                send_message(chat_id, f"💡 РЕКОМЕНДАЦИИ ПО УЛУЧШЕНИЮ\n\n{result}")
 
             elif text == '🎯 Финальный вердикт':
                 result = analyze_part(resume_text, "final_verdict")
-                send_message(chat_id, f"🎯 <b>ФИНАЛЬНЫЙ ВЕРДИКТ</b>\n\n{result}")
+                send_message(chat_id, f"🎯 ФИНАЛЬНЫЙ ВЕРДИКТ\n\n{result}")
 
             elif text == '✨ Переделать резюме':
                 result = analyze_part(resume_text, "rewrite")
-                send_message(chat_id, f"✨ <b>ИДЕАЛЬНАЯ ВЕРСИЯ РЕЗЮМЕ</b>\n\n{result}")
+                send_message(chat_id, f"✨ ИДЕАЛЬНАЯ ВЕРСИЯ РЕЗЮМЕ ✨\n\n{result}")
 
             return 'ok', 200
 
@@ -332,7 +396,7 @@ def webhook():
                 send_message(chat_id, "❌ Отправьте файл в формате PDF.")
                 return 'ok', 200
 
-            send_message(chat_id, "🔍 <b>Получил PDF. Анализирую...</b>\n⏳ 30-60 секунд")
+            send_message(chat_id, "🔍 Получил PDF. Анализирую...\n⏳ 30-60 секунд")
 
             file_id = doc['file_id']
             file_info = requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile?file_id={file_id}").json()
