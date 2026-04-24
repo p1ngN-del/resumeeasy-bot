@@ -18,9 +18,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-
-# Статистика для админа
 stats = {"users": set(), "total_requests": 0}
+
+# Хранилище для текста резюме по chat_id (временное)
+resume_cache = {}
 
 def send_message(chat_id, text, reply_markup=None):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -31,6 +32,16 @@ def send_message(chat_id, text, reply_markup=None):
         requests.post(url, json=payload, timeout=30)
     except Exception as e:
         logger.error(f"Send error: {e}")
+
+def edit_message(chat_id, message_id, text, reply_markup=None):
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/editMessageText"
+    payload = {"chat_id": chat_id, "message_id": message_id, "text": text, "parse_mode": "HTML"}
+    if reply_markup:
+        payload["reply_markup"] = json.dumps(reply_markup)
+    try:
+        requests.post(url, json=payload, timeout=30)
+    except Exception as e:
+        logger.error(f"Edit error: {e}")
 
 def extract_text_from_pdf(file_bytes):
     try:
@@ -45,103 +56,106 @@ def extract_text_from_pdf(file_bytes):
         logger.error(f"PDF error: {e}")
         return None
 
-def analyze_with_deepseek(resume_text):
+def get_score_emoji(score):
+    if score >= 90:
+        return "🟢"
+    elif score >= 70:
+        return "🟡"
+    elif score >= 50:
+        return "🟠"
+    else:
+        return "🔴"
+
+def analyze_part(resume_text, part_name):
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {
         "Authorization": f"Bearer {DEEPSEEK_API_KEY}",
         "Content-Type": "application/json"
     }
 
-    prompt = f"""Ты — эксперт по ATS с 10+ лет опыта. Проанализируй резюме и ВЕРНИ ОТВЕТ ТОЛЬКО В ФОРМАТЕ, УКАЗАННОМ НИЖЕ. НЕ ПРОПУСКАЙ НИ ОДИН ПУНКТ. НЕ СОКРАЩАЙ.
+    prompts = {
+        "ats_score": f"""Ты эксперт по ATS. Проанализируй резюме и ВЕРНИ ТОЛЬКО ЧИСЛО ОТ 0 ДО 100. БЕЗ ТЕКСТА. БЕЗ ОБЪЯСНЕНИЙ.
 
 Резюме:
-{resume_text[:6000]}
+{resume_text[:4000]}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 ФОРМАТ ОТВЕТА (строго соблюдай)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Оцени общий балл ATS от 0 до 100.""",
 
-1️⃣ <b>ОБЩАЯ ОЦЕНКА РЕЗЮМЕ (ATS SCORE)</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "detailed_metrics": f"""Ты эксперт по ATS. Проанализируй резюме и ВЕРНИ ТОЛЬКО 6 ЧИСЕЛ ЧЕРЕЗ ЗАПЯТУЮ. БЕЗ ТЕКСТА.
 
-<b>Общий балл ATS:</b> X/100
+Резюме:
+{resume_text[:4000]}
 
-Где:
-90-100 — 🟢 Отлично, резюме готово
-70-89 — 🟡 Хорошо, но есть недочёты
-50-69 — 🟠 Средне, требуются улучшения
-0-49 — 🔴 Плохо, нужна полная переработка
+Оцени от 0 до 100:
+1. Ключевые слова
+2. Достижения с цифрами
+3. Форматирование
+4. Длина резюме
+5. Навыки (hard skills)
+6. Грамматика и стиль
 
-<b>Краткий вердикт:</b> (1-2 предложения)
+Пример ответа: 85,70,90,95,80,75""",
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-2️⃣ <b>ДЕТАЛЬНЫЙ РАЗБОР ПО МЕТРИКАМ</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "hh_version": f"""Ты эксперт по ATS. Проанализируй резюме и создай готовую версию для hh.ru в plain text.
 
-<b>1. Ключевые слова под профессию:</b> X/100
-<b>2. Достижения (цифры, результаты):</b> X/100
-<b>3. Форматирование (читаемость для ATS):</b> X/100
-<b>4. Длина резюме (1-2 страницы):</b> X/100
-<b>5. Навыки (hard skills):</b> X/100
-<b>6. Грамматика и стиль:</b> X/100
+Резюме:
+{resume_text[:4000]}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-3️⃣ <b>ГОТОВАЯ ВЕРСИЯ ДЛЯ hh.ru</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Требования:
+- обратная хронология
+- 2-4 достижения на место с цифрами
+- разделы: Цель, Опыт, Навыки, Образование
+- без таблиц и графики
+- только текст""",
 
-(текст в plain text, обратная хронология, 2-4 достижения на место с цифрами)
+        "keywords": f"""Ты эксперт по ATS. Проанализируй резюме и ВЕРНИ ТОЛЬКО ДВЕ СТРОКИ:
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-4️⃣ <b>КЛЮЧЕВЫЕ СЛОВА ATS-READY</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Резюме:
+{resume_text[:4000]}
 
-<u>8-12 ключевых слов:</u> слово1, слово2, слово3, слово4, слово5...
+Строка 1: 8-12 ключевых слов через запятую
+Строка 2: 3 варианта заголовка резюме через точку с запятой""",
 
-<u>3 варианта заголовка резюме:</u>
+        "fixes": f"""Ты эксперт по ATS. Проанализируй резюме и напиши 6-10 точечных правок в формате:
+
+Резюме:
+{resume_text[:4000]}
+
+Пункт 1: исправление
+Пункт 2: исправление
+...""",
+
+        "recommendations": f"""Ты эксперт по ATS. Напиши 5-7 рекомендаций по загрузке резюме на hh.ru.
+
+Резюме:
+{resume_text[:4000]}
+
+Рекомендации:
 1. ...
-2. ...
-3. ...
+2. ...""",
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-5️⃣ <b>ТОЧЕЧНЫЕ ПРАВКИ (6-10 пунктов)</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        "final_version": f"""Ты эксперт по ATS. Напиши финальную версию резюме в plain text, готовую для копирования.
 
-<b>Было:</b> «...»
-<b>Стало:</b> «...»
+Резюме:
+{resume_text[:4000]}
 
-(повторить 6-10 раз)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-6️⃣ <b>РЕКОМЕНДАЦИИ ПО ЗАГРУЗКЕ НА hh.ru</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-• Поля: заголовок, зарплата, релокация
-• Фильтры и категории
-• Как вставить ссылки
-• Портфолио и проекты
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-7️⃣ <b>ФИНАЛЬНАЯ ВЕРСИЯ РЕЗЮМЕ (PLAIN TEXT)</b>
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-(текст без форматирования, готовый для копирования)
-
-📌 ВАЖНО: ВСЕ 7 ПУНКТОВ ДОЛЖНЫ БЫТЬ В ОТВЕТЕ. НЕ ПРОПУСКАЙ. НЕ СОКРАЩАЙ."""
+Финальная версия (только текст):"""
+    }
 
     payload = {
         "model": "deepseek-chat",
-        "messages": [{"role": "user", "content": prompt}],
+        "messages": [{"role": "user", "content": prompts[part_name]}],
         "temperature": 0.2,
-        "max_tokens": 4500
+        "max_tokens": 2000
     }
 
-    response = requests.post(url, headers=headers, json=payload, timeout=180)
+    response = requests.post(url, headers=headers, json=payload, timeout=120)
     response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    return response.json()["choices"][0]["message"]["content"].strip()
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    global stats
+    global stats, resume_cache
     try:
         data = request.get_json()
         if 'message' not in data:
@@ -153,75 +167,111 @@ def webhook():
 
         text = data['message'].get('text', '')
 
-        # Скрытая админ-команда
+        # Админ-команда
         if text == '/admin':
             send_message(chat_id,
-                f"📊 <b>Статистика бота</b>\n\n"
-                f"👥 Пользователей: {len(stats['users'])}\n"
-                f"📩 Запросов: {stats['total_requests']}")
+                f"📊 Статистика бота\n\n"
+                f"Пользователей: {len(stats['users'])}\n"
+                f"Запросов: {stats['total_requests']}")
             return 'ok', 200
 
-        # Команда /start с меню
+        # /start с меню
         if text == '/start':
             keyboard = {
-                "keyboard": [
-                    ["📄 Загрузить резюме", "❓ Помощь"],
-                    ["📊 Моя статистика", "👤 Профиль"]
-                ],
+                "keyboard": [["📄 Загрузить резюме"], ["❓ Помощь"]],
                 "resize_keyboard": True
             }
             send_message(chat_id,
                 "📄 <b>ResumeEasy Bot</b>\n\n"
-                "Я проведу полный ATS-анализ вашего резюме и дам <b>бальную оценку от 0 до 100</b>.\n\n"
-                "▸ Нажмите <b>«Загрузить резюме»</b> и отправьте PDF.\n"
-                "▸ Анализ занимает 20–40 секунд.\n"
-                "▸ Результат: общий балл + разбор по 6 метрикам + готовая версия для hh.ru.",
+                "Я проведу полный ATS-анализ вашего резюме.\n\n"
+                "Нажмите «Загрузить резюме» и отправьте PDF.",
                 reply_markup=keyboard)
-            return 'ok', 200
-
-        # Обработка кнопок
-        if text == '📄 Загрузить резюме':
-            send_message(chat_id, "📎 Отправьте PDF-файл с вашим резюме.")
             return 'ok', 200
 
         if text == '❓ Помощь':
             send_message(chat_id,
-                "📘 <b>Как пользоваться ботом</b>\n\n"
-                "1️⃣ Нажмите «Загрузить резюме» и отправьте PDF.\n"
-                "2️⃣ Дождитесь анализа (20–40 секунд).\n"
-                "3️⃣ Получите детальный разбор:\n\n"
-                "   • <b>Общий балл ATS</b> (0–100) с цветовой индикацией\n"
-                "   • <b>6 метрик</b> (каждая с оценкой 0–100)\n"
-                "   • Готовую версию для hh.ru\n"
-                "   • Ключевые слова и заголовки\n"
-                "   • Точечные правки\n"
-                "   • Рекомендации по загрузке\n"
-                "   • Финальную версию")
+                "📘 <b>Как работает бот</b>\n\n"
+                "1. Загрузите PDF с резюме\n"
+                "2. Бот проанализирует и выдаст кнопки\n"
+                "3. Нажимайте кнопки — получайте результаты\n\n"
+                "<b>Что вы получите:</b>\n"
+                "• Общий балл ATS (0-100)\n"
+                "• Разбор по 6 метрикам\n"
+                "• Готовую версию для hh.ru\n"
+                "• Ключевые слова и заголовки\n"
+                "• Точечные правки\n"
+                "• Рекомендации\n"
+                "• Финальную версию")
             return 'ok', 200
 
-        if text == '📊 Моя статистика':
-            send_message(chat_id,
-                f"📈 <b>Ваша активность</b>\n\n"
-                f"📄 Всего анализов: {stats['total_requests']}\n"
-                f"👤 ID пользователя: <code>{chat_id}</code>")
+        if text == '📄 Загрузить резюме':
+            send_message(chat_id, "📎 Отправьте PDF-файл с резюме.")
             return 'ok', 200
 
-        if text == '👤 Профиль':
-            send_message(chat_id,
-                f"👤 <b>Ваш профиль</b>\n\n"
-                f"🆔 ID: <code>{chat_id}</code>\n"
-                f"📅 Активен с: {datetime.now().strftime('%d.%m.%Y')}\n\n"
-                f"Для анализа нажмите «Загрузить резюме».")
+        # Обработка нажатий на кнопки результатов
+        if text.startswith('🔍'):
+            resume_text = resume_cache.get(chat_id)
+            if not resume_text:
+                send_message(chat_id, "❌ Сессия истекла. Загрузите резюме заново.")
+                return 'ok', 200
+
+            if text == '🔍 Общий балл ATS':
+                score = analyze_part(resume_text, "ats_score")
+                try:
+                    score_int = int(score)
+                    emoji = get_score_emoji(score_int)
+                    send_message(chat_id, f"{emoji} <b>Общий балл ATS: {score_int}/100</b>\n\n{emoji} Оценка: {score_int}/100")
+                except:
+                    send_message(chat_id, f"📊 <b>Общий балл ATS</b>\n\n{score}")
+
+            elif text == '🔍 Детальный разбор по метрикам':
+                metrics = analyze_part(resume_text, "detailed_metrics")
+                parts = metrics.split(',')
+                if len(parts) >= 6:
+                    names = ["Ключевые слова", "Достижения (цифры)", "Форматирование", "Длина резюме", "Навыки (hard)", "Грамматика"]
+                    msg = "<b>📊 Детальный разбор по метрикам</b>\n\n"
+                    for i, name in enumerate(names):
+                        try:
+                            val = int(parts[i].strip())
+                            emoji = get_score_emoji(val)
+                            msg += f"{emoji} {name}: {val}/100\n"
+                        except:
+                            msg += f"• {name}: {parts[i].strip()}\n"
+                    send_message(chat_id, msg)
+                else:
+                    send_message(chat_id, f"📊 <b>Метрики</b>\n\n{metrics}")
+
+            elif text == '🔍 Готовая версия для hh.ru':
+                result = analyze_part(resume_text, "hh_version")
+                send_message(chat_id, f"📄 <b>Готовая версия для hh.ru</b>\n\n{result[:4000]}")
+
+            elif text == '🔍 Ключевые слова и заголовки':
+                result = analyze_part(resume_text, "keywords")
+                send_message(chat_id, f"🔑 <b>Ключевые слова и заголовки</b>\n\n{result}")
+
+            elif text == '🔍 Точечные правки':
+                result = analyze_part(resume_text, "fixes")
+                send_message(chat_id, f"✏️ <b>Точечные правки</b>\n\n{result}")
+
+            elif text == '🔍 Рекомендации по загрузке':
+                result = analyze_part(resume_text, "recommendations")
+                send_message(chat_id, f"💡 <b>Рекомендации по загрузке на hh.ru</b>\n\n{result}")
+
+            elif text == '🔍 Финальная версия резюме':
+                result = analyze_part(resume_text, "final_version")
+                send_message(chat_id, f"✅ <b>Финальная версия резюме</b>\n\n{result}")
+
             return 'ok', 200
 
         # Обработка PDF
         if 'document' in data['message']:
             doc = data['message']['document']
             if doc.get('mime_type') != 'application/pdf':
-                send_message(chat_id, "❌ Пожалуйста, отправьте файл в формате PDF.")
+                send_message(chat_id, "❌ Отправьте PDF файл.")
                 return 'ok', 200
 
-            send_message(chat_id, "🔍 <b>Анализирую резюме...</b>\n⏳ Это займёт 20–40 секунд.")
+            msg = send_message(chat_id, "🔍 Анализирую резюме... ⏳ 20-40 секунд")
+            message_id = msg.json()['result']['message_id']
 
             # Скачиваем файл
             file_id = doc['file_id']
@@ -233,18 +283,28 @@ def webhook():
             # Извлекаем текст
             resume_text = extract_text_from_pdf(file_content)
             if not resume_text or len(resume_text.split()) < 50:
-                send_message(chat_id, "❌ Не удалось извлечь текст из PDF. Убедитесь, что файл не отсканирован.")
+                edit_message(chat_id, message_id, "❌ Не удалось извлечь текст из PDF. Убедитесь, что файл не отсканирован.")
                 return 'ok', 200
 
-            # Анализируем
-            analysis = analyze_with_deepseek(resume_text)
+            # Сохраняем в кэш
+            resume_cache[chat_id] = resume_text
 
-            # Отправляем результат
-            if len(analysis) > 4096:
-                for i in range(0, len(analysis), 4096):
-                    send_message(chat_id, analysis[i:i+4096])
-            else:
-                send_message(chat_id, analysis)
+            # Кнопки для навигации
+            keyboard = {
+                "keyboard": [
+                    ["🔍 Общий балл ATS", "🔍 Детальный разбор по метрикам"],
+                    ["🔍 Готовая версия для hh.ru", "🔍 Ключевые слова и заголовки"],
+                    ["🔍 Точечные правки", "🔍 Рекомендации по загрузке"],
+                    ["🔍 Финальная версия резюме"],
+                    ["📄 Загрузить другое резюме", "❓ Помощь"]
+                ],
+                "resize_keyboard": True
+            }
+
+            edit_message(chat_id, message_id,
+                "✅ <b>Резюме успешно загружено!</b>\n\n"
+                "Выберите раздел для просмотра анализа:",
+                reply_markup=keyboard)
 
             return 'ok', 200
 
@@ -252,7 +312,6 @@ def webhook():
 
     except Exception as e:
         logger.error(f"Webhook error: {e}")
-        send_message(chat_id, "❌ Произошла ошибка. Попробуйте ещё раз.")
         return 'error', 500
 
 @app.route('/', methods=['GET', 'HEAD'])
