@@ -135,7 +135,7 @@ def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
 Резюме:\n{resume_text[:4000]}""",
         "overall_score": f"Оцени резюме 0-100. ТОЛЬКО число.\nРезюме:\n{resume_text[:4000]}",
         "strengths": f"5-7 сильных сторон. ✅ в начале. БЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
-        "weaknesses": f"5-7 слабых мест.  в начале. БЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
+        "weaknesses": f"5-7 слабых мест. ⚠️ в начале. БЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
         "recommendations": f"5 советов в формате:\n❌ Проблема:\n✅ Решение:\n💡 Пример:\nБЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
         "keywords": f"8-12 ключевых слов через запятую. ТОЛЬКО слова.\nРезюме:\n{resume_text[:4000]}",
         "final_verdict": f"""Дай чёткий финальный вердикт по резюме.
@@ -196,7 +196,7 @@ def webhook():
     chat_id = None
     try:
         data = request.get_json()
-        if not data or 'message' not in 
+        if not data or 'message' not in data:
             return 'ok', 200
         
         chat_id = data['message']['chat']['id']
@@ -460,6 +460,7 @@ def webhook():
 
 @app.route('/', methods=['GET','HEAD'])
 def index(): return '✅ Online', 200
+
 @app.route('/health')
 def health(): return {"status":"ok"}, 200
 
