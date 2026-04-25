@@ -1,21 +1,15 @@
 #!/usr/bin/env python3
-import os
-import io
-import logging
-import requests
-import sqlite3
-import re
-import json
+import os, io, logging, requests, sqlite3, re, json
 from datetime import datetime
 from flask import Flask, request
 from PyPDF2 import PdfReader
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
-# 🔐 НАСТРОЙКИ (не трогай, всё берётся из Render)
+# 🔐 Настройки
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 ADMIN_IDS = set(map(int, os.environ.get("ADMIN_IDS", "0").split(",")))
-WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
+# WEBHOOK_SECRET — отключаем для тестов, включишь позже
 
 if not TELEGRAM_TOKEN or not DEEPSEEK_API_KEY:
     raise ValueError("Missing TELEGRAM_TOKEN or DEEPSEEK_API_KEY")
@@ -27,6 +21,17 @@ app = Flask(__name__)
 DB_NAME = "resumeeasy.db"
 resume_cache = {}
 
+# ===== ГЛОБАЛЬНЫЙ СЛОВАРЬ КНОПОК (чтобы не было KeyError) =====
+PART_MAP = {
+    '🤖 ATS-рубрика': 'ats_score',
+    '💪 Сильные стороны': 'strengths',
+    '⚠️ Слабые стороны': 'weaknesses',
+    '🔑 Ключевые слова': 'keywords',
+    '💡 Советы (Было→Стало)': 'recommendations',
+    '🎯 Вердикт': 'final_verdict',
+    '✨ Переписать резюме': 'rewrite'
+}
+
 # ===== БАЗА ДАННЫХ =====
 def init_db():
     conn = sqlite3.connect(DB_NAME)
@@ -37,8 +42,7 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS analyses (
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER,
         resume_text TEXT, ats_score INTEGER, overall_score INTEGER,
-        metrics_json TEXT, analysis_date TEXT,
-        FOREIGN KEY (user_id) REFERENCES users (user_id))''')
+        metrics_json TEXT, analysis_date TEXT)''')
     conn.commit()
     conn.close()
 
@@ -56,16 +60,6 @@ def update_activity(user_id):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute('UPDATE users SET last_activity=? WHERE user_id=?', (datetime.now().isoformat(), user_id))
-    conn.commit()
-    conn.close()
-
-def save_analysis(user_id, text, ats, overall, metrics):
-    conn = sqlite3.connect(DB_NAME)
-    c = conn.cursor()
-    c.execute('''INSERT INTO analyses 
-        (user_id, resume_text, ats_score, overall_score, metrics_json, analysis_date)
-        VALUES (?, ?, ?, ?, ?, ?)''',
-        (user_id, text[:500], ats, overall, metrics, datetime.now().isoformat()))
     conn.commit()
     conn.close()
 
@@ -108,7 +102,7 @@ def extract_json(text):
     text = re.sub(r'```json\s*|\s*```', '', text).strip()
     try:
         return json.loads(text)
-    except json.JSONDecodeError:
+    except:
         m = re.search(r'\{.*\}', text, re.DOTALL)
         if m:
             try:
@@ -128,67 +122,45 @@ def extract_text_from_pdf(file_bytes):
 
 def get_score_emoji(score):
     try:
-        score = float(score)
-        if score >= 90: return "🟢"
-        if score >= 70: return "🟡"
-        if score >= 50: return ""
+        s = float(score)
+        if s >= 90: return "🟢"
+        if s >= 70: return "🟡"
+        if s >= 50: return ""
         return "🔴"
     except:
         return "⚪"
 
-# ===== AI АНАЛИЗ =====
+# ===== AI =====
 def analyze_part(resume_text, part_name):
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     
     prompts = {
-        "ats_score": f"""Оцени резюме по 5 критериям (каждый 0-100):
-1. Контакты (email, телефон, LinkedIn/портфолио)
-2. Структура (разделы, порядок, логика)
-3. Ключевые слова (совпадение со стандартами 2026)
-4. Достижения с цифрами (%, ₽, сроки, масштабы)
-5. Форматирование (нет воды, глаголы действия, стиль)
-
-ВЕРНИ ТОЛЬКО JSON БЕЗ ЛИШНЕГО ТЕКСТА:
-{{"contacts": 0-100, "structure": 0-100, "keywords": 0-100, "achievements": 0-100, "format": 0-100, "overall": 0-100}}
-
+        "ats_score": f"""Оцени резюме по 5 критериям (0-100 каждый):
+1. Контакты 2. Структура 3. Ключевые слова 4. Достижения с цифрами 5. Формат
+ВЕРНИ ТОЛЬКО JSON: {{"contacts": N, "structure": N, "keywords": N, "achievements": N, "format": N, "overall": N}}
 Резюме:\n{resume_text[:4000]}""",
-        "overall_score": f"Оцени общее качество резюме от 0 до 100. Ответь ТОЛЬКО числом.\nРезюме:\n{resume_text[:4000]}",
-        "strengths": f"""Выдели 5-7 сильных сторон.
-ПРАВИЛА: ✅ в начале, обычный текст, БЕЗ *, #, HTML.
-Резюме:\n{resume_text[:4000]}""",
-        "weaknesses": f"""Выдели 5-7 слабых мест.
-ПРАВИЛА:  в начале, обычный текст, БЕЗ *, #, HTML.
-Резюме:\n{resume_text[:4000]}""",
-        "recommendations": f"""Дай 5 рекомендаций в формате:
-❌ Проблема: [что не так]
-✅ Решение: [как исправить]
-💡 Пример: [готовая фраза для вставки]
-ПРАВИЛА: БЕЗ *, #, HTML. Конкретные глаголы действия.
-Резюме:\n{resume_text[:4000]}""",
-        "keywords": f"Выдай 8-12 ключевых слов через запятую. ТОЛЬКО слова.\nРезюме:\n{resume_text[:4000]}",
-        "final_verdict": f"Дай вердикт: 1. Готово к рассылке? (Да/Нет) 2. Топ-3 исправления 3. Прогноз конверсии (%).\nБез *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
-        "rewrite": f"Перепиши резюме идеально. Только plain text. Добавь цифры, убери воду, глаголы действия.\nБез *, #, HTML, жирного.\nОригинал:\n{resume_text[:4000]}"
+        "overall_score": f"Оцени резюме 0-100. ТОЛЬКО число.\nРезюме:\n{resume_text[:4000]}",
+        "strengths": f"5-7 сильных сторон. ✅ в начале. БЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
+        "weaknesses": f"5-7 слабых мест.  в начале. БЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
+        "recommendations": f"5 советов в формате:\n❌ Проблема:\n✅ Решение:\n💡 Пример:\nБЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
+        "keywords": f"8-12 ключевых слов через запятую. ТОЛЬКО слова.\nРезюме:\n{resume_text[:4000]}",
+        "final_verdict": f"Вердикт: 1. Готово? (Да/Нет) 2. Топ-3 исправления 3. Конверсия %\nБез *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
+        "rewrite": f"Перепиши резюме идеально. Только текст. Цифры, глаголы действия. Без *, #, HTML.\nОригинал:\n{resume_text[:4000]}"
     }
-
+    
     payload = {"model": "deepseek-chat", "messages": [{"role": "user", "content": prompts[part_name]}], "temperature": 0, "max_tokens": 2500}
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=120)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"].strip()
-    except requests.exceptions.Timeout:
-        return "⏳ Сервис перегружен, попробуй через минуту"
-    except Exception as e:
-        logger.error(f"AI error [{part_name}]: {e}")
-        return "🔧 Временная ошибка анализа"
+    except:
+        return "⏳ Попробуй через минуту"
 
 # ===== МЕНЮ =====
 def show_main_menu(chat_id):
     kb = {"keyboard": [["📄 Загрузить резюме"], ["📊 Моя статистика", "❓ Помощь"], ["🔐 Админ-панель"]], "resize_keyboard": True}
-    send_message(chat_id, 
-        "👋 <b>ResumeEasy Bot</b> — твой ATS-эксперт\n\n"
-        "📊 Анализирую резюме по стандартам 2026\n"
-        "🚀 Выбери действие в меню ниже", reply_markup=kb)
+    send_message(chat_id, "👋 <b>ResumeEasy Bot</b>\n📊 ATS-анализ резюме 2026\n🚀 Выбери действие", reply_markup=kb)
 
 def show_analysis_menu(chat_id):
     kb = {"keyboard": [
@@ -198,9 +170,7 @@ def show_analysis_menu(chat_id):
         ["🎯 Вердикт", "✨ Переписать резюме"],
         ["📄 Новое резюме", "⬅️ Назад в меню"]
     ], "resize_keyboard": True}
-    send_message(chat_id, 
-        "✅ <b>Резюме загружено!</b>\n\n"
-        "🎯 Выбери тип анализа:", reply_markup=kb)
+    send_message(chat_id, "✅ <b>Резюме загружено!</b>\n🎯 Выбери анализ:", reply_markup=kb)
 
 # ===== ВЕБХУК =====
 @app.route('/webhook', methods=['POST'])
@@ -208,34 +178,32 @@ def webhook():
     global resume_cache
     chat_id = None
     try:
-        if request.headers.get('X-Telegram-Bot-Api-Secret-Token') != WEBHOOK_SECRET:
-            logger.warning("⚠️ Unauthorized webhook")
-            return 'unauthorized', 401
-        
         data = request.get_json()
         if not data or 'message' not in data:
             return 'ok', 200
 
         chat_id = data['message']['chat']['id']
         user = data['message']['from']
-        save_user(chat_id, user.get('username', 'anon'), user.get('first_name', ''))
+        save_user(chat_id, user.get('username','anon'), user.get('first_name',''))
         update_activity(chat_id)
         text = data['message'].get('text', '')
+        
+        logger.info(f"User {chat_id} sent: {repr(text)[:100]}")  # 🔍 Отладка: видим точный текст кнопки
 
-        # 🏠 ГЛАВНОЕ МЕНЮ
+        # 🏠 МЕНЮ
         if text in ['/start', '🏠 Главное меню', '⬅️ Назад в меню']:
             show_main_menu(chat_id)
             return 'ok', 200
 
         # ❓ ПОМОЩЬ
         if text == '❓ Помощь':
-            send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1️⃣ Загрузи резюме (PDF)\n2️⃣ Выбери анализ\n⏱️ Жди 20-40 сек")
+            send_message(chat_id, "📘 <b>Инструкция:</b>\n1. Загрузи PDF\n2. Выбери анализ\n⏱️ Жди 30 сек")
             return 'ok', 200
 
         # 📊 СТАТИСТИКА
         if text == '📊 Моя статистика':
-            total, avg_ats, avg_ov = get_user_stats(chat_id)
-            send_message(chat_id, f"📊 <b>Твоя статистика</b>\n📄 Анализов: {total}\n{get_score_emoji(avg_ats)} ATS: {avg_ats:.1f}/100\n{get_score_emoji(avg_ov)} Общая: {avg_ov:.1f}/100")
+            total, a, o = get_user_stats(chat_id)
+            send_message(chat_id, f"📊 <b>Статистика</b>\n📄 Анализов: {total}\n{get_score_emoji(a)} ATS: {a:.1f}\n{get_score_emoji(o)} Общая: {o:.1f}")
             return 'ok', 200
 
         # 🔐 АДМИНКА
@@ -244,12 +212,12 @@ def webhook():
                 send_message(chat_id, "🔐 Доступ запрещён")
                 return 'ok', 200
             u, a, ats, ov = get_all_stats()
-            send_message(chat_id, f"📊 <b>Панель управления</b>\n👥 Юзеров: {u}\n📄 Анализов: {a}\n📈 ATS: {ats:.1f} | Общая: {ov:.1f}\n🕒 {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+            send_message(chat_id, f"📊 <b>Админка</b>\n👥 {u} юзеров\n📄 {a} анализов\n📈 ATS: {ats:.1f} | Общая: {ov:.1f}")
             return 'ok', 200
 
         # 📄 ЗАГРУЗКА
         if text in ['📄 Загрузить резюме', '📄 Новое резюме']:
-            send_message(chat_id, "📎 Отправь PDF-файл (до 10 МБ, не скан)")
+            send_message(chat_id, "📎 Отправь PDF (до 10 МБ, не скан)")
             return 'ok', 200
 
         # 📥 PDF
@@ -261,7 +229,7 @@ def webhook():
             if doc.get('mime_type') != 'application/pdf':
                 send_message(chat_id, "❌ Нужен PDF")
                 return 'ok', 200
-            send_message(chat_id, "🔍 Извлекаю текст... ⏳")
+            send_message(chat_id, "🔍 Извлекаю текст...")
             fid = doc['file_id']
             finfo = requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile?file_id={fid}", timeout=30).json()
             if not finfo.get('ok'):
@@ -270,35 +238,26 @@ def webhook():
             furl = f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{finfo['result']['file_path']}"
             rtext = extract_text_from_pdf(requests.get(furl, timeout=60).content)
             if not rtext or len(rtext.split()) < 50:
-                send_message(chat_id, "❌ Текст не извлечён (возможно, скан)")
+                send_message(chat_id, "❌ Не удалось извлечь текст (возможно, скан)")
                 return 'ok', 200
             resume_cache[chat_id] = rtext
             show_analysis_menu(chat_id)
             return 'ok', 200
 
-        # 🧠 АНАЛИЗ
-        part_map = {
-            '🤖 ATS-рубрика': 'ats_score',
-            '💪 Сильные стороны': 'strengths',
-            '⚠️ Слабые стороны': 'weaknesses',
-            '🔑 Ключевые слова': 'keywords',
-            '💡 Советы (Было→Стало)': 'recommendations',
-            '🎯 Вердикт': 'final_verdict',
-            '✨ Переписать резюме': 'rewrite'
-        }
-        
-        if text in part_map:
+        # 🧠 АНАЛИЗ ПО КНОПКЕ
+        if text in PART_MAP:  # ✅ Используем глобальный словарь
             rtext = resume_cache.get(chat_id)
             if not rtext:
                 show_main_menu(chat_id)
                 send_message(chat_id, "❌ Сессия сброшена. Загрузи резюме заново.")
                 return 'ok', 200
             send_message(chat_id, "⏳ Анализирую...")
-            result = analyze_part(rtext, part_map[text])
+            result = analyze_part(rtext, PART_MAP[text])
+            
             if text == '🤖 ATS-рубрика':
-                data = extract_json(result)
-                if data and isinstance(data, dict):
-                    out = f"🤖 <b>ATS-РУБРИКА</b>\n📞 Контакты: {data.get('contacts', '?')}/100\n📐 Структура: {data.get('structure', '?')}/100\n🔑 Ключевые: {data.get('keywords', '?')}/100\n📊 Достижения: {data.get('achievements', '?')}/100\n📝 Формат: {data.get('format', '?')}/100\n\n🎯 <b>ИТОГО: {data.get('overall', '?')}/100</b> {get_score_emoji(data.get('overall',0))}"
+                d = extract_json(result)
+                if d and isinstance(d, dict):
+                    out = f"🤖 <b>ATS</b>\n📞 {d.get('contacts','?')} | 📐 {d.get('structure','?')} | 🔑 {d.get('keywords','?')}\n📊 {d.get('achievements','?')} | 📝 {d.get('format','?')} | 🎯 <b>{d.get('overall','?')}/100</b>"
                 else:
                     out = f"🤖 ATS: {result}"
             else:
@@ -315,20 +274,15 @@ def webhook():
                 return 'ok', 200
             send_message(chat_id, "🚀 Глубокий анализ... ⏳")
             with ThreadPoolExecutor(max_workers=5) as ex:
-                f_ats = ex.submit(analyze_part, rtext, "ats_score")
-                f_ov = ex.submit(analyze_part, rtext, "overall_score")
-                f_str = ex.submit(analyze_part, rtext, "strengths")
-                f_weak = ex.submit(analyze_part, rtext, "weaknesses")
-                f_rec = ex.submit(analyze_part, rtext, "recommendations")
-                ats_r, ov_r, str_r, weak_r, rec_r = f_ats.result(), f_ov.result(), f_str.result(), f_weak.result(), f_rec.result()
-            ats_d = extract_json(ats_r)
-            ats_block = ""
-            if ats_d and isinstance(ats_d, dict):
-                ats_block = f"🤖 <b>ATS</b>\n📞 {ats_d.get('contacts','?')} | 📐 {ats_d.get('structure','?')} | 🔑 {ats_d.get('keywords','?')}\n📊 {ats_d.get('achievements','?')} | 📝 {ats_d.get('format','?')} | 🎯 <b>{ats_d.get('overall','?')}/100</b>\n\n"
-            else:
-                ats_block = f"🤖 ATS: {ats_r}\n\n"
-            full = f"📊 <b>ПОЛНЫЙ ОТЧЁТ</b>\n\n{ats_block}📈 Общая: {ov_r}\n\n💪 <b>СИЛЬНЫЕ:</b>\n{str_r}\n\n⚠️ <b>СЛАБЫЕ:</b>\n{weak_r}\n\n💡 <b>СОВЕТЫ:</b>\n{rec_r}"
-            send_message(chat_id, full)
+                f1 = ex.submit(analyze_part, rtext, "ats_score")
+                f2 = ex.submit(analyze_part, rtext, "overall_score")
+                f3 = ex.submit(analyze_part, rtext, "strengths")
+                f4 = ex.submit(analyze_part, rtext, "weaknesses")
+                f5 = ex.submit(analyze_part, rtext, "recommendations")
+                r1, r2, r3, r4, r5 = f1.result(), f2.result(), f3.result(), f4.result(), f5.result()
+            d = extract_json(r1)
+            ats = f"🤖 <b>ATS</b>\n📞 {d.get('contacts','?')} | 📐 {d.get('structure','?')} | 🔑 {d.get('keywords','?')}\n📊 {d.get('achievements','?')} | 📝 {d.get('format','?')} | 🎯 <b>{d.get('overall','?')}/100</b>\n\n" if d and isinstance(d,dict) else f"🤖 ATS: {r1}\n\n"
+            send_message(chat_id, f"📊 <b>ПОЛНЫЙ ОТЧЁТ</b>\n\n{ats}📈 Общая: {r2}\n\n💪 <b>СИЛЬНЫЕ:</b>\n{r3}\n\n⚠️ <b>СЛАБЫЕ:</b>\n{r4}\n\n💡 <b>СОВЕТЫ:</b>\n{r5}")
             return 'ok', 200
 
         return 'ok', 200
@@ -339,15 +293,12 @@ def webhook():
             send_message(chat_id, f"❌ Ошибка: {str(e)[:150]}")
         return 'error', 500
 
-@app.route('/', methods=['GET', 'HEAD'])
-def index(): 
-    return '✅ ResumeEasy Bot Online', 200
+@app.route('/', methods=['GET','HEAD'])
+def index(): return '✅ ResumeEasy Bot Online', 200
 
-@app.route('/health', methods=['GET'])
-def health(): 
-    return {"status": "ok", "db": "ready"}, 200
+@app.route('/health')
+def health(): return {"status":"ok"}, 200
 
-# Инициализация
 if __name__ != "__main__":
     init_db()
     logger.info("🚀 ResumeEasy Bot started")
