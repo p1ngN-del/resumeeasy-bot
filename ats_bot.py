@@ -9,9 +9,9 @@ import json
 from datetime import datetime
 from flask import Flask, request
 from PyPDF2 import PdfReader
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
-# 🔐 Настройки из переменных окружения
+# 🔐 Настройки
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 ADMIN_IDS = set(map(int, os.environ.get("ADMIN_IDS", "0").split(",")))
@@ -105,12 +105,18 @@ def send_message(chat_id, text, reply_markup=None, parse_mode="HTML"):
         logger.error(f"Send error: {e}")
 
 def extract_json(text):
+    """Извлекает JSON из ответа AI, даже если там есть лишний текст"""
     text = re.sub(r'```json\s*|\s*```', '', text).strip()
     try:
         return json.loads(text)
     except json.JSONDecodeError:
         m = re.search(r'\{.*\}', text, re.DOTALL)
-        return json.loads(m.group()) if m else None
+        if m:
+            try:
+                return json.loads(m.group())
+            except:
+                pass
+        return None
 
 def extract_text_from_pdf(file_bytes):
     try:
@@ -122,10 +128,14 @@ def extract_text_from_pdf(file_bytes):
         return None
 
 def get_score_emoji(score):
-    if score >= 90: return "🟢"
-    if score >= 70: return "🟡"
-    if score >= 50: return ""
-    return "🔴"
+    try:
+        score = float(score)
+        if score >= 90: return "🟢"
+        if score >= 70: return "🟡"
+        if score >= 50: return ""
+        return "🔴"
+    except:
+        return "⚪"
 
 # ===== AI АНАЛИЗ =====
 def analyze_part(resume_text, part_name):
@@ -146,23 +156,18 @@ def analyze_part(resume_text, part_name):
 Резюме:\n{resume_text[:4000]}""",
 
         "overall_score": f"Оцени общее качество резюме от 0 до 100. Ответь ТОЛЬКО числом.\nРезюме:\n{resume_text[:4000]}",
-
         "strengths": f"""Выдели 5-7 сильных сторон.
 ПРАВИЛА: ✅ в начале, обычный текст, БЕЗ *, #, HTML.
 Резюме:\n{resume_text[:4000]}""",
-
         "weaknesses": f"""Выдели 5-7 слабых мест.
 ПРАВИЛА:  в начале, обычный текст, БЕЗ *, #, HTML.
 Резюме:\n{resume_text[:4000]}""",
-
         "recommendations": f"""Дай 5 рекомендаций в формате:
 ❌ Проблема: [что не так]
 ✅ Решение: [как исправить]
 💡 Пример: [готовая фраза для вставки]
-
 ПРАВИЛА: БЕЗ *, #, HTML. Конкретные глаголы действия.
 Резюме:\n{resume_text[:4000]}""",
-
         "keywords": f"Выдай 8-12 ключевых слов через запятую. ТОЛЬКО слова.\nРезюме:\n{resume_text[:4000]}",
         "final_verdict": f"Дай вердикт: 1. Готово к рассылке? (Да/Нет) 2. Топ-3 исправления 3. Прогноз конверсии (%).\nБез *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
         "rewrite": f"Перепиши резюме идеально. Только plain text. Добавь цифры, убери воду, глаголы действия.\nБез *, #, HTML, жирного.\nОригинал:\n{resume_text[:4000]}"
@@ -179,7 +184,7 @@ def analyze_part(resume_text, part_name):
         logger.error(f"AI error [{part_name}]: {e}")
         return "🔧 Временная ошибка анализа"
 
-# ===== МЕНЮ И НАВИГАЦИЯ =====
+# ===== МЕНЮ =====
 def show_main_menu(chat_id):
     kb = {"keyboard": [["📄 Загрузить резюме"], ["📊 Моя статистика", "❓ Помощь"], ["🔐 Админ-панель"]], "resize_keyboard": True}
     send_message(chat_id, 
@@ -189,8 +194,8 @@ def show_main_menu(chat_id):
 
 def show_analysis_menu(chat_id):
     kb = {"keyboard": [
-        ["🚀 Полный разбор", " ATS-рубрика"],
-        [" Сильные стороны", "⚠️ Слабые стороны"],
+        ["🚀 Полный разбор", "🤖 ATS-рубрика"],
+        ["💪 Сильные стороны", "⚠️ Слабые стороны"],
         ["🔑 Ключевые слова", "💡 Советы (Было→Стало)"],
         ["🎯 Вердикт", "✨ Переписать резюме"],
         ["📄 Новое резюме", "⬅️ Назад в меню"]
@@ -205,11 +210,14 @@ def webhook():
     global resume_cache
     chat_id = None
     try:
+        # 🔐 Проверка вебхука
         if request.headers.get('X-Telegram-Bot-Api-Secret-Token') != WEBHOOK_SECRET:
+            logger.warning("⚠️ Unauthorized webhook attempt")
             return 'unauthorized', 401
         
         data = request.get_json()
-        if 'message' not in data: return 'ok', 200
+        if not data or 'message' not in data:
+            return 'ok', 200
 
         chat_id = data['message']['chat']['id']
         user = data['message']['from']
@@ -217,18 +225,20 @@ def webhook():
         update_activity(chat_id)
         text = data['message'].get('text', '')
 
-        #  ГЛАВНОЕ МЕНЮ
+        logger.info(f"User {chat_id} sent: {text[:50]}")
+
+        # 🏠 ГЛАВНОЕ МЕНЮ
         if text in ['/start', '🏠 Главное меню', '⬅️ Назад в меню']:
             show_main_menu(chat_id)
             return 'ok', 200
 
-        #  ПОМОЩЬ
+        # ❓ ПОМОЩЬ
         if text == '❓ Помощь':
             send_message(chat_id, 
                 "📘 <b>Как пользоваться:</b>\n\n"
                 "1️⃣ Нажми «Загрузить резюме»\n"
                 "2️⃣ Отправь PDF (до 10 МБ)\n"
-                "3️3️⃣ Выбери анализ в меню\n\n"
+                "3️⃣ Выбери анализ в меню\n\n"
                 "⏱️ Обычно занимает 20-40 сек")
             return 'ok', 200
 
@@ -244,8 +254,9 @@ def webhook():
 
         # 🔐 АДМИНКА
         if text == '🔐 Админ-панель':
+            logger.info(f"Admin attempt from {chat_id}, allowed IDs: {ADMIN_IDS}")
             if chat_id not in ADMIN_IDS:
-                send_message(chat_id, "🔐 Доступ запрещён")
+                send_message(chat_id, "🔐 Доступ запрещён. Ваш ID не в списке админов.")
                 return 'ok', 200
             u, a, ats, ov = get_all_stats()
             send_message(chat_id, 
@@ -287,8 +298,18 @@ def webhook():
             show_analysis_menu(chat_id)
             return 'ok', 200
 
-        # 🧠 АНАЛИЗ (ИНДИВИДУАЛЬНЫЙ)
-        if text in [' ATS-рубрика', '💪 Сильные стороны', '⚠️ Слабые стороны', '🔑 Ключевые слова', '💡 Советы (Было→Стало)', '🎯 Вердикт', '✨ Переписать резюме']:
+        # 🧠 ИНДИВИДУАЛЬНЫЙ АНАЛИЗ
+        part_map = {
+            '🤖 ATS-рубрика': 'ats_score',
+            '💪 Сильные стороны': 'strengths',
+            '⚠️ Слабые стороны': 'weaknesses',
+            '🔑 Ключевые слова': 'keywords',
+            '💡 Советы (Было→Стало)': 'recommendations',
+            '🎯 Вердикт': 'final_verdict',  # ✅ Теперь с 🎯
+            '✨ Переписать резюме': 'rewrite'
+        }
+        
+        if text in part_map:
             rtext = resume_cache.get(chat_id)
             if not rtext:
                 show_main_menu(chat_id)
@@ -296,22 +317,16 @@ def webhook():
                 return 'ok', 200
 
             send_message(chat_id, "⏳ Анализирую... (15-30 сек)")
-            part_map = {
-                ' ATS-рубрика': 'ats_score', '💪 Сильные стороны': 'strengths',
-                '⚠️ Слабые стороны': 'weaknesses', '🔑 Ключевые слова': 'keywords',
-                '💡 Советы (Было→Стало)': 'recommendations', ' Вердикт': 'final_verdict',
-                '✨ Переписать резюме': 'rewrite'
-            }
             result = analyze_part(rtext, part_map[text])
             
-            # Форматируем ATS-рубрику отдельно
+            # Форматируем ATS-рубрику
             if text == '🤖 ATS-рубрика':
                 data = extract_json(result)
-                if data:
-                    out = (f" <b>ATS-РУБРИКА</b>\n\n"
-                           f" Контакты: {data.get('contacts', '?')}/100\n"
-                           f" Структура: {data.get('structure', '?')}/100\n"
-                           f" Ключевые слова: {data.get('keywords', '?')}/100\n"
+                if data and isinstance(data, dict):
+                    out = (f"🤖 <b>ATS-РУБРИКА</b>\n\n"
+                           f"📞 Контакты: {data.get('contacts', '?')}/100\n"
+                           f"📐 Структура: {data.get('structure', '?')}/100\n"
+                           f"🔑 Ключевые слова: {data.get('keywords', '?')}/100\n"
                            f"📊 Достижения: {data.get('achievements', '?')}/100\n"
                            f"📝 Формат: {data.get('format', '?')}/100\n\n"
                            f"🎯 <b>ИТОГО: {data.get('overall', '?')}/100</b> {get_score_emoji(data.get('overall',0))}")
@@ -323,7 +338,7 @@ def webhook():
             send_message(chat_id, out)
             return 'ok', 200
 
-        # 🚀 ПОЛНЫЙ РАЗБОР (ПАРАЛЛЕЛЬНЫЙ)
+        # 🚀 ПОЛНЫЙ РАЗБОР
         if text == '🚀 Полный разбор':
             rtext = resume_cache.get(chat_id)
             if not rtext:
@@ -333,45 +348,61 @@ def webhook():
 
             send_message(chat_id, "🚀 Запускаю глубокий анализ... ⏳ (30-50 сек)")
             with ThreadPoolExecutor(max_workers=5) as ex:
-                f_ats = ex.submit(analyze_part, rtext, "ats_score")
-                f_ov = ex.submit(analyze_part, rtext, "overall_score")
-                f_str = ex.submit(analyze_part, rtext, "strengths")
-                f_weak = ex.submit(analyze_part, rtext, "weaknesses")
-                f_rec = ex.submit(analyze_part, rtext, "recommendations")
-                
-                ats_r, ov_r, str_r, weak_r, rec_r = f_ats.result(), f_ov.result(), f_str.result(), f_weak.result(), f_rec.result()
+                futures = {
+                    ex.submit(analyze_part, rtext, "ats_score"): "ats",
+                    ex.submit(analyze_part, rtext, "overall_score"): "overall",
+                    ex.submit(analyze_part, rtext, "strengths"): "strengths",
+                    ex.submit(analyze_part, rtext, "weaknesses"): "weaknesses",
+                    ex.submit(analyze_part, rtext, "recommendations"): "recommendations"
+                }
+                results = {}
+                for future in as_completed(futures):
+                    label = futures[future]
+                    try:
+                        results[label] = future.result()
+                    except Exception as e:
+                        logger.error(f"Task {label} failed: {e}")
+                        results[label] = "Ошибка"
 
-            ats_d = extract_json(ats_r)
+            # Формируем отчёт
+            ats_d = extract_json(results.get("ats", ""))
             ats_block = ""
-            if ats_d:
-                ats_block = (f" <b>ATS-РУБРИКА</b>\n"
-                             f" {ats_d.get('contacts', '?')} | 📐 {ats_d.get('structure', '?')} | 🔑 {ats_d.get('keywords', '?')}\n"
-                             f"📊 {ats_d.get('achievements', '?')} | 📝 {ats_d.get('.format', '?')} | 🎯 <b>{ats_d.get('overall', '?')}/100</b>\n\n")
+            if ats_d and isinstance(ats_d, dict):
+                ats_block = (f"🤖 <b>ATS-РУБРИКА</b>\n"
+                             f"📞 {ats_d.get('contacts', '?')} | 📐 {ats_d.get('structure', '?')} | 🔑 {ats_d.get('keywords', '?')}\n"
+                             f"📊 {ats_d.get('achievements', '?')} | 📝 {ats_d.get('format', '?')} | 🎯 <b>{ats_d.get('overall', '?')}/100</b>\n\n")
             else:
-                ats_block = f"🤖 ATS: {ats_r}\n\n"
+                ats_block = f"🤖 ATS: {results.get('ats', 'N/A')}\n\n"
 
             full = (f"📊 <b>ПОЛНЫЙ ОТЧЁТ</b>\n\n"
                     f"{ats_block}"
-                    f"📈 Общая: {ov_r}\n\n"
-                    f"💪 <b>СИЛЬНЫЕ:</b>\n{str_r}\n\n"
-                    f"⚠️ <b>СЛАБЫЕ:</b>\n{weak_r}\n\n"
-                    f" <b>СОВЕТЫ (Было→Стало):</b>\n{rec_r}")
+                    f"📈 Общая: {results.get('overall', 'N/A')}\n\n"
+                    f"💪 <b>СИЛЬНЫЕ:</b>\n{results.get('strengths', 'N/A')}\n\n"
+                    f"⚠️ <b>СЛАБЫЕ:</b>\n{results.get('weaknesses', 'N/A')}\n\n"
+                    f"💡 <b>СОВЕТЫ:</b>\n{results.get('recommendations', 'N/A')}")
             send_message(chat_id, full)
             return 'ok', 200
 
+        # Неизвестная команда
+        logger.info(f"Unknown command from {chat_id}: {text}")
         return 'ok', 200
 
     except Exception as e:
-        logger.error(f"Webhook crash: {e}")
-        if chat_id: send_message(chat_id, f"❌ Ошибка: {str(e)[:150]}")
+        logger.error(f"Webhook crash: {e}", exc_info=True)
+        if chat_id:
+            send_message(chat_id, f"❌ Ошибка: {str(e)[:150]}")
         return 'error', 500
 
 @app.route('/', methods=['GET', 'HEAD'])
-def index(): return '✅ ResumeEasy Bot Online', 200
+def index(): 
+    return '✅ ResumeEasy Bot Online', 200
 
 @app.route('/health', methods=['GET'])
-def health(): return {"status": "ok", "db": "ready"}, 200
+def health(): 
+    return {"status": "ok", "db": "ready"}, 200
 
-if __name__ != "__main__":
+# Для локального тестирования
+if __name__ == "__main__":
     init_db()
-    logger.info(" ResumeEasy Bot started")
+    logger.info("🚀 ResumeEasy Bot started (local mode)")
+    app.run(host="0.0.0.0", port=5000)
