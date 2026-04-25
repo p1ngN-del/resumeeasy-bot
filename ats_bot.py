@@ -387,6 +387,7 @@ def webhook():
             return 'ok', 200
 
         # 🚀 ПОЛНЫЙ РАЗБОР (ПОСЛЕДОВАТЕЛЬНО, с прогрессом)
+                # 🚀 ПОЛНЫЙ РАЗБОР (частями, чтобы не было таймаута)
         if text == '🚀 Полный разбор':
             rtext = resume_cache.get(chat_id)
             if not rtext:
@@ -394,40 +395,71 @@ def webhook():
                 send_message(chat_id, "❌ Сессия истекла. Загрузи резюме заново.")
                 return 'ok', 200
             
-            # Отправляем прогресс-сообщения
-            send_message(chat_id, "🚀 <b>Запускаю глубокий анализ</b>\n⏳ Это займёт ~2 минуты")
-            time.sleep(1)
-            send_message(chat_id, "🔍 Проверяю ATS-совместимость...")
+            # Отправляем по частям с короткими таймаутами
+            send_message(chat_id, "🚀 <b>Полный разбор</b>\n⏳ Делаю по шагам...")
             
-            # Делаем запросы ПОСЛЕДОВАТЕЛЬНО (чтобы не было таймаута Render)
-            ats_r = analyze_part(rtext, "ats_score", timeout=45)
-            send_message(chat_id, "📊 Оцениваю общее качество...")
-            ov_r = analyze_part(rtext, "overall_score", timeout=30)
-            send_message(chat_id, "💪 Анализирую сильные стороны...")
-            str_r = analyze_part(rtext, "strengths", timeout=45)
-            send_message(chat_id, "⚠️ Ищу слабые места...")
-            weak_r = analyze_part(rtext, "weaknesses", timeout=45)
-            send_message(chat_id, "💡 Готовлю советы...")
-            rec_r = analyze_part(rtext, "recommendations", timeout=45)
+            results = {}
             
-            # Формируем отчёт
-            d = extract_json(ats_r)
+            # 1. ATS (самый важный)
+            try:
+                send_message(chat_id, "🔍 ATS-совместимость...")
+                results['ats'] = analyze_part(rtext, "ats_score", timeout=25)
+            except:
+                results['ats'] = "⚠️ Пропущено"
+            
+            # 2. Общая оценка
+            try:
+                send_message(chat_id, "📊 Общая оценка...")
+                results['overall'] = analyze_part(rtext, "overall_score", timeout=20)
+            except:
+                results['overall'] = "⚠️ Пропущено"
+            
+            # 3. Сильные стороны
+            try:
+                send_message(chat_id, "💪 Сильные стороны...")
+                results['strengths'] = analyze_part(rtext, "strengths", timeout=25)
+            except:
+                results['strengths'] = "⚠️ Пропущено"
+            
+            # 4. Слабые стороны
+            try:
+                send_message(chat_id, "⚠️ Слабые места...")
+                results['weaknesses'] = analyze_part(rtext, "weaknesses", timeout=25)
+            except:
+                results['weaknesses'] = "⚠️ Пропущено"
+            
+            # 5. Советы (отправляем отдельно, чтобы не обрезать)
+            try:
+                send_message(chat_id, "💡 Советы...")
+                results['recommendations'] = analyze_part(rtext, "recommendations", timeout=25)
+            except:
+                results['recommendations'] = "⚠️ Пропущено"
+            
+            # === ОТПРАВЛЯЕМ ОТЧЁТ ЧАСТЯМИ ===
+            
+            # Часть 1: Оценка
+            d = extract_json(results['ats'])
             if d and isinstance(d, dict):
-                ats_block = (f"🤖 <b>ATS-РУБРИКА</b>\n"
-                             f"📞 Контакты: {d.get('contacts','?')} | 📐 Структура: {d.get('structure','?')}\n"
-                             f"🔑 Ключевые: {d.get('keywords','?')} | 📊 Достижения: {d.get('achievements','?')}\n"
-                             f"📝 Формат: {d.get('format','?')} | 🎯 <b>ИТОГО: {d.get('overall','?')}/100</b>\n\n")
+                ats_text = (f"🤖 <b>ATS-РУБРИКА</b>\n"
+                           f"📞 {d.get('contacts','?')} | 📐 {d.get('structure','?')}\n"
+                           f"🔑 {d.get('keywords','?')} | 📊 {d.get('achievements','?')}\n"
+                           f"📝 {d.get('format','?')} | 🎯 <b>{d.get('overall','?')}/100</b>")
             else:
-                ats_block = f"🤖 ATS: {ats_r}\n\n"
+                ats_text = f"🤖 ATS: {results['ats']}"
             
-            full = (f"📊 <b>ПОЛНЫЙ ОТЧЁТ</b>\n\n"
-                    f"{ats_block}"
-                    f"📈 <b>Общая оценка</b>: {ov_r}\n\n"
-                    f"💪 <b>СИЛЬНЫЕ СТОРОНЫ</b>:\n{str_r}\n\n"
-                    f"⚠️ <b>СЛАБЫЕ МЕСТА</b>:\n{weak_r}\n\n"
-                    f"💡 <b>СОВЕТЫ (Было → Стало)</b>:\n{rec_r}\n\n"
-                    f"<i>💬 Хочешь вердикт или переписать резюме? Выбери в меню выше</i>")
-            send_message(chat_id, full)
+            part1 = f"📊 <b>ОЦЕНКА</b>\n\n{ats_text}\n\n📈 Общая: {results['overall']}"
+            send_message(chat_id, part1)
+            
+            # Часть 2: Сильные/Слабые стороны
+            part2 = f"💪 <b>СИЛЬНЫЕ</b>:\n{results['strengths']}\n\n⚠️ <b>СЛАБЫЕ</b>:\n{results['weaknesses']}"
+            send_message(chat_id, part2)
+            
+            # Часть 3: Советы (отдельно, т.к. может быть длинным)
+            send_message(chat_id, f"💡 <b>СОВЕТЫ (Было → Стало)</b>:\n{results['recommendations']}")
+            
+            # Финальное сообщение
+            send_message(chat_id, "✅ <b>Готово!</b>\n\n💬 Нажми «🎯 Вердикт» для финального вывода или «✨ Переписать резюме» для идеальной версии.")
+            
             return 'ok', 200
 
         # Неизвестная команда
