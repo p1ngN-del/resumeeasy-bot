@@ -198,7 +198,7 @@ def webhook():
         data = request.get_json()
         if not data or 'message' not in 
             return 'ok', 200
-
+        
         chat_id = data['message']['chat']['id']
         user = data['message']['from']
         save_user(chat_id, user.get('username','anon'), user.get('first_name',''))
