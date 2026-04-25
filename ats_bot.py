@@ -16,12 +16,11 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-DB_NAME = "resumeeasy.db"  # ✅ Локальная БД (работает на free tier)
+DB_NAME = "resumeeasy.db"
 resume_cache = {}
 
 # ===== БАЗА ДАННЫХ =====
 def init_db():
-    # ✅ Убрали os.makedirs — создаём БД в текущей папке
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -180,7 +179,9 @@ def webhook():
     chat_id = None
     try:
         data = request.get_json()
-        if not data or 'message' not in  return 'ok', 200
+        # ✅ ИСПРАВЛЕНО: полная проверка
+        if not data or 'message' not in data:
+            return 'ok', 200
 
         chat_id = data['message']['chat']['id']
         user = data['message']['from']
@@ -218,7 +219,8 @@ def webhook():
             users = get_all_users(10)
             msg = "📊 <b>Панель управления</b>\n👥 Пользователи:\n"
             for u_id, u_name, u_fn, j_date, total, avg_ats in users:
-                msg += f"• {u_fn or u_name} | Анализов: {total} | Ср. ATS: {avg_ats or 0:.0f}\n"
+                avg_val = avg_ats if avg_ats else 0
+                msg += f"• {u_fn or u_name} | Анализов: {total} | Ср. ATS: {avg_val:.0f}\n"
             send_message(chat_id, msg)
             return 'ok', 200
 
@@ -342,7 +344,6 @@ def webhook():
             send_message(chat_id, "⏳ Анализирую...")
             res = analyze_part(rtext, PART_MAP[text])
             
-            # Сохраняем в БД
             if PART_MAP[text] in ['ats_score', 'final_verdict']:
                 try:
                     d = extract_json(res) if PART_MAP[text]=='ats_score' else None
