@@ -5,13 +5,16 @@ import logging
 import requests
 import sqlite3
 import re
-from flask import Flask, request
-from PyPDF2 import PdfReader
 import json
 from datetime import datetime
+from flask import Flask, request
+from PyPDF2 import PdfReader
 
+# 🔐 Токены и настройки из переменных окружения
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
+ADMIN_IDS = set(map(int, os.environ.get("ADMIN_IDS", "0").split(",")))
+WEBHOOK_SECRET = os.environ.get("WEBHOOK_SECRET")
 
 if not TELEGRAM_TOKEN or not DEEPSEEK_API_KEY:
     raise ValueError("Missing TELEGRAM_TOKEN or DEEPSEEK_API_KEY")
@@ -220,9 +223,21 @@ def analyze_part(resume_text, part_name):
         "max_tokens": 2500
     }
 
-    response = requests.post(url, headers=headers, json=payload, timeout=120)
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"].strip()
+    try:
+        response = requests.post(url, headers=headers, json=payload, timeout=120)
+        response.raise_for_status()
+        result = response.json()["choices"][0]["message"]["content"].strip()
+        logger.debug(f"AI[{part_name}]: {result[:200]}...")
+        return result
+    except requests.exceptions.Timeout:
+        logger.error(f"Timeout for {part_name}")
+        return "⏳ Сервис перегружен, попробуйте через минуту"
+    except requests.exceptions.RequestException as e:
+        logger.error(f"API error: {e}")
+        return "🔧 Временная ошибка анализа, попробуйте ещё раз"
+    except Exception as e:
+        logger.error(f"Unexpected error in analyze_part: {e}")
+        return "⚠️ Произошла ошибка при анализе"
 
 def get_score_emoji(score):
     if score >= 90:
@@ -278,7 +293,14 @@ def show_analysis_menu(chat_id):
 @app.route('/webhook', methods=['POST'])
 def webhook():
     global resume_cache
+    chat_id = None  # 🔧 Инициализируем заранее, чтобы избежать ошибки
+    
     try:
+        # 🔐 Проверка секрета вебхука
+        if request.headers.get('X-Telegram-Bot-Api-Secret-Token') != WEBHOOK_SECRET:
+            logger.warning("⚠️ Неавторизованный запрос на вебхук")
+            return 'unauthorized', 401
+        
         data = request.get_json()
         if 'message' not in data:
             return 'ok', 200
@@ -291,7 +313,11 @@ def webhook():
         update_user_activity(chat_id)
         text = data['message'].get('text', '')
 
+        # 🔐 Админка только для своих
         if text == '/admin':
+            if chat_id not in ADMIN_IDS:
+                send_message(chat_id, "🔐 Доступ запрещён")
+                return 'ok', 200
             total_users, total_analyses, avg_ats, avg_overall = get_all_stats()
             send_message(chat_id, 
                 f"📊 СТАТИСТИКА БОТА 📊\n\n"
@@ -389,9 +415,15 @@ def webhook():
 
             return 'ok', 200
 
-        # Обработка PDF
+        # Обработка PDF с проверкой размера
         if 'document' in data['message']:
             doc = data['message']['document']
+            
+            # 🔧 Проверка размера файла (макс 10 МБ)
+            if doc.get('file_size', 0) > 10 * 1024 * 1024:
+                send_message(chat_id, "❌ Файл слишком большой (макс. 10 МБ)")
+                return 'ok', 200
+                
             if doc.get('mime_type') != 'application/pdf':
                 send_message(chat_id, "❌ Отправьте файл в формате PDF.")
                 return 'ok', 200
@@ -399,7 +431,12 @@ def webhook():
             send_message(chat_id, "🔍 Получил PDF. Анализирую...\n⏳ 30-60 секунд")
 
             file_id = doc['file_id']
-            file_info = requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile?file_id={file_id}").json()
+            file_info = requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile?file_id={file_id}", timeout=30).json()
+            
+            if not file_info.get('ok'):
+                send_message(chat_id, "❌ Не удалось получить файл. Попробуйте ещё раз.")
+                return 'ok', 200
+                
             file_path = file_info['result']['file_path']
             file_url = f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{file_path}"
             file_content = requests.get(file_url, timeout=60).content
@@ -417,13 +454,19 @@ def webhook():
 
     except Exception as e:
         logger.error(f"Webhook error: {e}")
-        send_message(chat_id, f"❌ Ошибка: {str(e)[:200]}")
+        if chat_id:
+            send_message(chat_id, f"❌ Ошибка: {str(e)[:200]}")
         return 'error', 500
 
 @app.route('/', methods=['GET', 'HEAD'])
 def index():
     return 'ResumeEasy Bot is running', 200
 
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check для мониторинга"""
+    return {"status": "ok", "service": "ResumeEasy Bot"}, 200
+
 if __name__ != "__main__":
     init_db()
-    logger.info("ResumeEasy Bot starting...")
+    logger.info("✅ ResumeEasy Bot starting...")
