@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, io, logging, requests, sqlite3, re, json, time, textwrap
+import os, io, logging, requests, sqlite3, re, json, time
 from datetime import datetime
 from flask import Flask, request
 from PyPDF2 import PdfReader
@@ -138,14 +138,50 @@ def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
         "weaknesses": f"5-7 слабых мест.  в начале. БЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
         "recommendations": f"5 советов в формате:\n❌ Проблема:\n✅ Решение:\n💡 Пример:\nБЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
         "keywords": f"8-12 ключевых слов через запятую. ТОЛЬКО слова.\nРезюме:\n{resume_text[:4000]}",
-        "final_verdict": f"Вердикт: 1. Готово? (Да/Нет) 2. Топ-3 исправления 3. Конверсия %\nБез *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
-        "rewrite": f"Перепиши резюме идеально. Только текст. Цифры, глаголы действия. Без *, #, HTML.\nОригинал:\n{resume_text[:4000]}"
+        "final_verdict": f"""Дай чёткий финальный вердикт по резюме.
+
+ОТВЕТЬ СТРОГО ПО ФОРМАТУ:
+
+🎯 ГОТОВНОСТЬ К РАССЫЛКЕ: [Да/Нет/Частично]
+
+❌ КРИТИЧЕСКИЕ ОШИБКИ (максимум 3):
+1. [ошибка]
+2. [ошибка]
+3. [ошибка]
+
+📈 ПРОГНОЗ КОНВЕРСИИ: [число]% (шанс получить приглашение на собеседование)
+
+💡 ГЛАВНАЯ РЕКОМЕНДАЦИЯ: [одна конкретная фраза, что сделать в первую очередь]
+
+Без *, #, HTML. Только обычный текст с эмодзи.
+
+Резюме:\n{resume_text[:4000]}""",
+        "rewrite": f"Перепиши резюме идеально. Только текст. Цифры, глаголы действия. Без *, #, HTML.\nОригинал:\n{resume_text[:4000]}",
+        "full_report": f"""Сделай полный структурированный отчёт по резюме.
+
+ВЕРНИ ТОЛЬКО JSON:
+{
+  "ats_score": {"contacts": N, "structure": N, "keywords": N, "achievements": N, "format": N, "overall": N},
+  "overall_score": N,
+  "strengths": ["пункт1", "пункт2"],
+  "weaknesses": ["пункт1", "пункт2"],
+  "keywords": ["keyword1", "keyword2"],
+  "recommendations": ["совет1", "совет2"],
+  "verdict": {
+    "ready": "Да/Нет/Частично",
+    "critical_errors": ["ошибка1", "ошибка2"],
+    "conversion_forecast": N,
+    "main_recommendation": "совет"
+  }
+}
+
+Резюме:\n{resume_text[:4000]}"""
     }
     
     payload = {
         "model": "deepseek-chat",
         "messages": [{"role": "user", "content": custom_prompt or prompts[part_name]}],
-        "temperature": 0, "max_tokens": 2500
+        "temperature": 0, "max_tokens": 3000
     }
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=timeout)
@@ -168,8 +204,8 @@ def show_analysis_menu(chat_id):
         ["💪 Сильные стороны", "⚠️ Слабые стороны"],
         ["🔑 Ключевые слова", "💡 Советы (Было→Стало)"],
         ["🎯 Вердикт", "✨ Переписать резюме"],
-        ["📤 Скачать отчёт", "🔄 Улучшить пункт"],
-        ["📄 Новое резюме", "⬅️ Назад в меню"]
+        ["📤 Скачать полный отчёт", "📄 Новое резюме"],
+        ["⬅️ Назад в меню"]
     ], "resize_keyboard": True}
     send_message(chat_id, "✅ <b>Резюме загружено!</b>\n🎯 Выбери анализ:", reply_markup=kb)
 
@@ -179,8 +215,7 @@ def webhook():
     chat_id = None
     try:
         data = request.get_json()
-        # ✅ ИСПРАВЛЕНО: полная проверка
-        if not data or 'message' not in data:
+        if not data or 'message' not in 
             return 'ok', 200
 
         chat_id = data['message']['chat']['id']
@@ -296,34 +331,78 @@ def webhook():
             resume_cache[f"{chat_id}_mode"] = None
             return 'ok', 200
 
-        # 🔄 УЛУЧШИТЬ ПУНКТ
-        if text == '🔄 Улучшить пункт':
-            resume_cache[f"{chat_id}_mode"] = "improve"
-            send_message(chat_id, "✍️ Напиши текст, который хочешь переписать.")
-            return 'ok', 200
-
-        if resume_cache.get(f"{chat_id}_mode") == "improve":
-            rtext = resume_cache.get(chat_id)
-            if not rtext: return 'ok', 200
-            send_message(chat_id, "✍️ Переписываю... ⏳")
-            prompt = f"Перепиши этот фрагмент идеально. Добавь цифры, убери воду. Только текст.\nФрагмент:\n{text}\nКонтекст:\n{rtext[:2000]}"
-            send_message(chat_id, analyze_part("", "custom", custom_prompt=prompt, timeout=40))
-            resume_cache[f"{chat_id}_mode"] = None
-            return 'ok', 200
-
-        # 📤 СКАЧАТЬ ОТЧЁТ
-        if text == '📤 Скачать отчёт':
+        # 📤 СКАЧАТЬ ПОЛНЫЙ ОТЧЁТ (улучшено)
+        if text == '📤 Скачать полный отчёт':
             rtext = resume_cache.get(chat_id)
             if not rtext:
                 send_message(chat_id, "❌ Сначала загрузи резюме")
                 return 'ok', 200
-            report = f"📊 ОТЧЁТ — {datetime.now().strftime('%d.%m.%Y')}\n\n{rtext[:1000]}...\n\n💡 Полный анализ: https://t.me/ResumeEasyBot"
+            
+            send_message(chat_id, "📄 Генерирую полный отчёт... ⏳")
+            
+            # Собираем все данные
+            ats_r = analyze_part(rtext, "ats_score", timeout=30)
+            ov_r = analyze_part(rtext, "overall_score", timeout=20)
+            str_r = analyze_part(rtext, "strengths", timeout=30)
+            weak_r = analyze_part(rtext, "weaknesses", timeout=30)
+            key_r = analyze_part(rtext, "keywords", timeout=20)
+            rec_r = analyze_part(rtext, "recommendations", timeout=30)
+            ver_r = analyze_part(rtext, "final_verdict", timeout=30)
+            
+            # Формируем структурированный отчёт
+            d_ats = extract_json(ats_r)
+            report = f"""📊 ПОЛНЫЙ ОТЧЁТ ПО РЕЗЮМЕ
+📅 Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}
+
+{'='*50}
+
+🤖 ATS-РУБРИКА:
+📞 Контакты: {d_ats.get('contacts','?') if d_ats else '?'} /100
+📐 Структура: {d_ats.get('structure','?') if d_ats else '?'} /100
+🔑 Ключевые слова: {d_ats.get('keywords','?') if d_ats else '?'} /100
+📊 Достижения: {d_ats.get('achievements','?') if d_ats else '?'} /100
+📝 Формат: {d_ats.get('format','?') if d_ats else '?'} /100
+🎯 ИТОГО: {d_ats.get('overall','?') if d_ats else '?'} /100 {get_level(d_ats.get('overall',0) if d_ats else 0)}
+
+📈 ОБЩАЯ ОЦЕНКА: {ov_r}/100
+
+{'='*50}
+
+💪 СИЛЬНЫЕ СТОРОНЫ:
+{str_r}
+
+{'='*50}
+
+⚠️ СЛАБЫЕ МЕСТА:
+{weak_r}
+
+{'='*50}
+
+🔑 КЛЮЧЕВЫЕ СЛОВА:
+{key_r}
+
+{'='*50}
+
+💡 РЕКОМЕНДАЦИИ:
+{rec_r}
+
+{'='*50}
+
+🎯 ВЕРДИКТ:
+{ver_r}
+
+{'='*50}
+
+💬 Полный анализ в боте: https://t.me/ResumeEasyBot
+"""
+            
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument"
             file = io.BytesIO(report.encode('utf-8'))
-            file.name = f"resume_{chat_id}.txt"
+            file.name = f"resume_report_{chat_id}.txt"
             try:
-                requests.post(url, files={"document": (file.name, file, "text/plain")}, data={"chat_id": chat_id, "caption": "📄 Твой отчёт"}, timeout=30)
-                send_message(chat_id, "✅ Файл отправлен!")
+                requests.post(url, files={"document": (file.name, file, "text/plain")}, 
+                            data={"chat_id": chat_id, "caption": "📄 Твой полный отчёт по резюме"}, timeout=30)
+                send_message(chat_id, "✅ Полный отчёт отправлен!")
             except Exception as e:
                 send_message(chat_id, f"❌ Ошибка: {e}")
             return 'ok', 200
