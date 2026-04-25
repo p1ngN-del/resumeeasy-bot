@@ -210,11 +210,6 @@ def show_analysis_menu(chat_id):
     send_message(chat_id, "✅ <b>Резюме загружено!</b>\n🎯 Выбери анализ:", reply_markup=kb)
 
 # ===== ВЕБХУК =====
-@app.route('/webhook', methods=['POST'])
-def webhook():
-    chat_id = None
-    try:
-        data = request.get_json()
         if not data or 'message' not in 
             return 'ok', 200
 
