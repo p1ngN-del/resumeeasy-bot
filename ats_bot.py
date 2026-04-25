@@ -149,33 +149,14 @@ def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
 2. [ошибка]
 3. [ошибка]
 
-📈 ПРОГНОЗ КОНВЕРСИИ: [число]% (шанс получить приглашение на собеседование)
+📈 ПРОГНОЗ КОНВЕРСИИ: [число]%
 
-💡 ГЛАВНАЯ РЕКОМЕНДАЦИЯ: [одна конкретная фраза, что сделать в первую очередь]
+💡 ГЛАВНАЯ РЕКОМЕНДАЦИЯ: [одна конкретная фраза]
 
 Без *, #, HTML. Только обычный текст с эмодзи.
 
 Резюме:\n{resume_text[:4000]}""",
-        "rewrite": f"Перепиши резюме идеально. Только текст. Цифры, глаголы действия. Без *, #, HTML.\nОригинал:\n{resume_text[:4000]}",
-        "full_report": f"""Сделай полный структурированный отчёт по резюме.
-
-ВЕРНИ ТОЛЬКО JSON:
-{
-  "ats_score": {"contacts": N, "structure": N, "keywords": N, "achievements": N, "format": N, "overall": N},
-  "overall_score": N,
-  "strengths": ["пункт1", "пункт2"],
-  "weaknesses": ["пункт1", "пункт2"],
-  "keywords": ["keyword1", "keyword2"],
-  "recommendations": ["совет1", "совет2"],
-  "verdict": {
-    "ready": "Да/Нет/Частично",
-    "critical_errors": ["ошибка1", "ошибка2"],
-    "conversion_forecast": N,
-    "main_recommendation": "совет"
-  }
-}
-
-Резюме:\n{resume_text[:4000]}"""
+        "rewrite": f"Перепиши резюме идеально. Только текст. Цифры, глаголы действия. Без *, #, HTML.\nОригинал:\n{resume_text[:4000]}"
     }
     
     payload = {
@@ -210,6 +191,11 @@ def show_analysis_menu(chat_id):
     send_message(chat_id, "✅ <b>Резюме загружено!</b>\n🎯 Выбери анализ:", reply_markup=kb)
 
 # ===== ВЕБХУК =====
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    chat_id = None
+    try:
+        data = request.get_json()
         if not data or 'message' not in 
             return 'ok', 200
 
@@ -225,7 +211,7 @@ def show_analysis_menu(chat_id):
 
         # ❓ ПОМОЩЬ
         if text == '❓ Помощь':
-            send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Выбери анализ\n3. Смотри историю и уровни")
+            send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Выбери анализ")
             return 'ok', 200
 
         # 📈 ИСТОРИЯ
@@ -326,7 +312,7 @@ def show_analysis_menu(chat_id):
             resume_cache[f"{chat_id}_mode"] = None
             return 'ok', 200
 
-        # 📤 СКАЧАТЬ ПОЛНЫЙ ОТЧЁТ (улучшено)
+        # 📤 СКАЧАТЬ ПОЛНЫЙ ОТЧЁТ
         if text == '📤 Скачать полный отчёт':
             rtext = resume_cache.get(chat_id)
             if not rtext:
@@ -335,7 +321,6 @@ def show_analysis_menu(chat_id):
             
             send_message(chat_id, "📄 Генерирую полный отчёт... ⏳")
             
-            # Собираем все данные
             ats_r = analyze_part(rtext, "ats_score", timeout=30)
             ov_r = analyze_part(rtext, "overall_score", timeout=20)
             str_r = analyze_part(rtext, "strengths", timeout=30)
@@ -344,7 +329,6 @@ def show_analysis_menu(chat_id):
             rec_r = analyze_part(rtext, "recommendations", timeout=30)
             ver_r = analyze_part(rtext, "final_verdict", timeout=30)
             
-            # Формируем структурированный отчёт
             d_ats = extract_json(ats_r)
             report = f"""📊 ПОЛНЫЙ ОТЧЁТ ПО РЕЗЮМЕ
 📅 Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}
@@ -388,7 +372,7 @@ def show_analysis_menu(chat_id):
 
 {'='*50}
 
-💬 Полный анализ в боте: https://t.me/ResumeEasyBot
+💬 Полный анализ: https://t.me/ResumeEasyBot
 """
             
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument"
@@ -396,7 +380,7 @@ def show_analysis_menu(chat_id):
             file.name = f"resume_report_{chat_id}.txt"
             try:
                 requests.post(url, files={"document": (file.name, file, "text/plain")}, 
-                            data={"chat_id": chat_id, "caption": "📄 Твой полный отчёт по резюме"}, timeout=30)
+                            data={"chat_id": chat_id, "caption": "📄 Твой полный отчёт"}, timeout=30)
                 send_message(chat_id, "✅ Полный отчёт отправлен!")
             except Exception as e:
                 send_message(chat_id, f"❌ Ошибка: {e}")
