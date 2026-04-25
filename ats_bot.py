@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import os, io, logging, requests, sqlite3, re, json, time
+import os, io, logging, requests, sqlite3, re, json, time, textwrap
 from datetime import datetime
 from flask import Flask, request
 from PyPDF2 import PdfReader
@@ -8,30 +8,20 @@ from PyPDF2 import PdfReader
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 ADMIN_IDS = set(map(int, os.environ.get("ADMIN_IDS", "0").split(",")))
+DB_NAME = os.environ.get("DB_PATH", "/data/resumeeasy.db")  # Для диска Render
 
 if not TELEGRAM_TOKEN or not DEEPSEEK_API_KEY:
-    raise ValueError("Missing TELEGRAM_TOKEN or DEEPSEEK_API_KEY")
+    raise ValueError("Missing tokens")
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-DB_NAME = "resumeeasy.db"
-resume_cache = {}
-
-# ===== ГЛОБАЛЬНЫЙ СЛОВАРЬ КНОПОК =====
-PART_MAP = {
-    '🤖 ATS-рубрика': 'ats_score',
-    '💪 Сильные стороны': 'strengths',
-    '⚠️ Слабые стороны': 'weaknesses',
-    '🔑 Ключевые слова': 'keywords',
-    '💡 Советы (Было→Стало)': 'recommendations',
-    '🎯 Вердикт': 'final_verdict',
-    '✨ Переписать резюме': 'rewrite'
-}
+resume_cache = {}  # Хранит резюме и состояния сессий
 
 # ===== БАЗА ДАННЫХ =====
 def init_db():
+    os.makedirs(os.path.dirname(DB_NAME), exist_ok=True)
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -40,7 +30,8 @@ def init_db():
     c.execute('''CREATE TABLE IF NOT EXISTS analyses (
         id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER,
         resume_text TEXT, ats_score INTEGER, overall_score INTEGER,
-        metrics_json TEXT, analysis_date TEXT)''')
+        analysis_type TEXT, analysis_date TEXT,
+        FOREIGN KEY (user_id) REFERENCES users (user_id))''')
     conn.commit()
     conn.close()
 
@@ -54,191 +45,124 @@ def save_user(user_id, username, first_name):
     conn.commit()
     conn.close()
 
-def update_activity(user_id):
+def save_analysis(user_id, resume_text, ats, overall, a_type="standard"):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('UPDATE users SET last_activity=? WHERE user_id=?', (datetime.now().isoformat(), user_id))
+    c.execute('''INSERT INTO analyses 
+        (user_id, resume_text, ats_score, overall_score, analysis_type, analysis_date)
+        VALUES (?, ?, ?, ?, ?, ?)''',
+        (user_id, resume_text[:500], ats, overall, a_type, datetime.now().isoformat()))
     conn.commit()
     conn.close()
 
-def get_user_stats(user_id):
+def get_user_history(user_id, limit=5):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('SELECT COUNT(*) FROM analyses WHERE user_id=?', (user_id,))
-    total = c.fetchone()[0]
-    c.execute('SELECT AVG(ats_score), AVG(overall_score) FROM analyses WHERE user_id=?', (user_id,))
-    avg = c.fetchone()
+    c.execute('''SELECT analysis_date, ats_score, overall_score, analysis_type 
+                 FROM analyses WHERE user_id=? ORDER BY id DESC LIMIT ?''', (user_id, limit))
+    rows = c.fetchall()
     conn.close()
-    return total, avg[0] or 0, avg[1] or 0
+    return rows
 
-def get_all_stats():
+def get_all_users(limit=10):
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
-    c.execute('SELECT COUNT(*) FROM users')
-    users = c.fetchone()[0]
-    c.execute('SELECT COUNT(*) FROM analyses')
-    analyses = c.fetchone()[0]
-    c.execute('SELECT AVG(ats_score) FROM analyses WHERE ats_score>0')
-    avg_ats = c.fetchone()[0] or 0
-    c.execute('SELECT AVG(overall_score) FROM analyses WHERE overall_score>0')
-    avg_ov = c.fetchone()[0] or 0
+    c.execute('''SELECT u.user_id, u.username, u.first_name, u.join_date, 
+                        COUNT(a.id) as total, AVG(a.ats_score) as avg_ats
+                 FROM users u LEFT JOIN analyses a ON u.user_id = a.user_id
+                 GROUP BY u.user_id ORDER BY u.last_activity DESC LIMIT ?''', (limit,))
+    rows = c.fetchall()
     conn.close()
-    return users, analyses, avg_ats, avg_ov
+    return rows
 
 # ===== УТИЛИТЫ =====
 def send_message(chat_id, text, reply_markup=None, parse_mode="HTML"):
+    # Telegram limit: 4096 chars. Split if needed.
+    chunks = [text[i:i+4000] for i in range(0, len(text), 4000)]
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    payload = {"chat_id": chat_id, "text": text, "parse_mode": parse_mode}
-    if reply_markup:
-        payload["reply_markup"] = json.dumps(reply_markup)
-    try:
-        requests.post(url, json=payload, timeout=30)
-    except Exception as e:
-        logger.error(f"Send error: {e}")
+    for chunk in chunks:
+        payload = {"chat_id": chat_id, "text": chunk, "parse_mode": parse_mode}
+        if reply_markup and chunk == chunks[-1]:
+            payload["reply_markup"] = json.dumps(reply_markup)
+        try:
+            requests.post(url, json=payload, timeout=30)
+        except Exception as e:
+            logger.error(f"Send error: {e}")
 
 def extract_json(text):
     text = re.sub(r'```json\s*|\s*```', '', text).strip()
-    try:
-        return json.loads(text)
+    try: return json.loads(text)
     except:
         m = re.search(r'\{.*\}', text, re.DOTALL)
         if m:
-            try:
-                return json.loads(m.group())
-            except:
-                pass
+            try: return json.loads(m.group())
+            except: pass
         return None
 
 def extract_text_from_pdf(file_bytes):
     try:
         pdf = PdfReader(io.BytesIO(file_bytes))
-        text = "\n".join(page.extract_text() or "" for page in pdf.pages)
-        return text.strip() if text.strip() else None
+        return "\n".join(p.extract_text() or "" for p in pdf.pages).strip()
     except Exception as e:
         logger.error(f"PDF error: {e}")
         return None
 
+def get_level(score):
+    try:
+        s = float(score)
+        if s >= 90: return "🏆 Эксперт"
+        if s >= 75: return "⭐ Профи"
+        if s >= 60: return "🚀 В процессе"
+        return "🌱 Новичок"
+    except: return "🌱 Новичок"
+
 def get_score_emoji(score):
     try:
         s = float(score)
-        if s >= 90: return "🟢 Отлично"
-        if s >= 70: return "🟡 Хорошо"
-        if s >= 50: return "🟠 Нормально"
-        return "🔴 Нужно доработать"
-    except:
-        return "⚪ Ошибка"
+        if s >= 90: return "🟢"
+        if s >= 70: return "🟡"
+        if s >= 50: return "🟠"
+        return "🔴"
+    except: return "⚪"
 
 # ===== AI =====
-def analyze_part(resume_text, part_name, timeout=60):
+def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     
     prompts = {
-        "ats_score": f"""Оцени резюме по 5 критериям (каждый 0-100):
-1. Контакты (есть ли email, телефон, ссылки)
-2. Структура (логика разделов, порядок)
-3. Ключевые слова (совпадение с вакансиями 2026)
-4. Достижения с цифрами (%, ₽, сроки, масштабы)
-5. Формат (нет воды, глаголы действия, стиль)
-
-ВЕРНИ ТОЛЬКО JSON:
-{{"contacts": N, "structure": N, "keywords": N, "achievements": N, "format": N, "overall": N}}
-
+        "ats_score": f"""Оцени резюме по 5 критериям (0-100 каждый):
+1. Контакты 2. Структура 3. Ключевые слова 4. Достижения с цифрами 5. Формат
+ВЕРНИ ТОЛЬКО JSON: {{"contacts": N, "structure": N, "keywords": N, "achievements": N, "format": N, "overall": N}}
 Резюме:\n{resume_text[:4000]}""",
-        
-        "overall_score": f"Оцени общее качество резюме числом от 0 до 100. ТОЛЬКО число, без текста.\nРезюме:\n{resume_text[:4000]}",
-        
-        "strengths": f"""Выдели 5-7 сильных сторон резюме.
-ПРАВИЛА:
-- Начинай каждый пункт с ✅
-- Пиши обычный текст, без *, #, HTML
-- Конкретика, без воды
-
-Резюме:\n{resume_text[:4000]}""",
-        
-        "weaknesses": f"""Выдели 5-7 слабых мест и ошибок.
-ПРАВИЛА:
-- Начинай каждый пункт с 
-- Пиши обычный текст, без *, #, HTML
-- Конкретика, что исправить
-
-Резюме:\n{resume_text[:4000]}""",
-        
-        "recommendations": f"""Дай 5 конкретных рекомендаций в формате:
-
-❌ Проблема: [что не так]
-✅ Решение: [как исправить]
-💡 Пример: [готовая фраза для вставки в резюме]
-
-ПРАВИЛА:
-- БЕЗ *, #, HTML
-- Примеры должны быть под стиль резюме
-- Глаголы действия: увеличил, запустил, оптимизировал
-
-Резюме:\n{resume_text[:4000]}""",
-        
-        "keywords": f"Выдай 8-12 ключевых слов для ATS через запятую. ТОЛЬКО слова, без лишнего текста.\nРезюме:\n{resume_text[:4000]}",
-        
-        "final_verdict": f"""Дай чёткий финальный вердикт по резюме.
-
-ФОРМАТ ОТВЕТА (строго):
-
-🎯 ГОТОВНОСТЬ: [Да/Нет/Частично]
-
-❌ КРИТИЧЕСКИЕ ОШИБКИ (макс. 3):
-• [ошибка 1]
-• [ошибка 2]
-• [ошибка 3]
-
-📈 ПРОГНОЗ: [число]% шанс получить приглашение на собеседование
-
-💡 ГЛАВНЫЙ СОВЕТ: [одна фраза, что сделать в первую очередь]
-
-Без *, #, HTML. Только обычный текст с эмодзи.
-
-Резюме:\n{resume_text[:4000]}""",
-        
-        "rewrite": f"""Перепиши резюме в идеальном варианте.
-
-ПРАВИЛА:
-- Только обычный текст (plain text)
-- Добавь цифры и конкретику
-- Убери воду и общие фразы
-- Используй глаголы действия: разработал, увеличил, внедрил
-- БЕЗ *, #, HTML, жирного шрифта
-
-Оригинал:\n{resume_text[:4000]}"""
+        "overall_score": f"Оцени резюме 0-100. ТОЛЬКО число.\nРезюме:\n{resume_text[:4000]}",
+        "strengths": f"5-7 сильных сторон. ✅ в начале. БЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
+        "weaknesses": f"5-7 слабых мест.  в начале. БЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
+        "recommendations": f"5 советов в формате:\n❌ Проблема:\n✅ Решение:\n💡 Пример:\nБЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
+        "keywords": f"8-12 ключевых слов через запятую. ТОЛЬКО слова.\nРезюме:\n{resume_text[:4000]}",
+        "final_verdict": f"Вердикт: 1. Готово? (Да/Нет) 2. Топ-3 исправления 3. Конверсия %\nБез *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
+        "rewrite": f"Перепиши резюме идеально. Только текст. Цифры, глаголы действия. Без *, #, HTML.\nОригинал:\n{resume_text[:4000]}"
     }
     
     payload = {
         "model": "deepseek-chat",
-        "messages": [{"role": "user", "content": prompts[part_name]}],
-        "temperature": 0,
-        "max_tokens": 2500
+        "messages": [{"role": "user", "content": custom_prompt or prompts[part_name]}],
+        "temperature": 0, "max_tokens": 2500
     }
-    
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=timeout)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"].strip()
-    except requests.exceptions.Timeout:
-        return "⏳ Сервис перегружен, попробуй через минуту"
-    except Exception as e:
-        logger.error(f"AI error [{part_name}]: {e}")
-        return "🔧 Временная ошибка анализа"
+    except: return "⏳ Попробуй через минуту"
 
 # ===== МЕНЮ =====
 def show_main_menu(chat_id):
-    kb = {"keyboard": [["📄 Загрузить резюме"], ["📊 Моя статистика", "❓ Помощь"], ["🔐 Админ-панель"]], "resize_keyboard": True}
-    send_message(chat_id, 
-        "👋 <b>ResumeEasy Bot</b> — твой ATS-эксперт ✨\n\n"
-        "📊 Анализирую резюме по стандартам 2026:\n"
-        "• Совместимость с парсерами (ATS)\n"
-        "• Качество контента и структуры\n"
-        "• Ключевые слова для поиска\n"
-        "• Конкретные советы по улучшению\n\n"
-        "🚀 Нажми «Загрузить резюме» чтобы начать", 
-        reply_markup=kb)
+    kb = {"keyboard": [
+        ["📄 Загрузить резюме"],
+        ["🎯 Сравнить с вакансией", "📈 Моя история"],
+        ["❓ Помощь", "🔐 Админ-панель"]
+    ], "resize_keyboard": True}
+    send_message(chat_id, "👋 <b>ResumeEasy Bot</b>\n📊 ATS-анализ, история, уровни\n🚀 Выбери действие", reply_markup=kb)
 
 def show_analysis_menu(chat_id):
     kb = {"keyboard": [
@@ -246,240 +170,244 @@ def show_analysis_menu(chat_id):
         ["💪 Сильные стороны", "⚠️ Слабые стороны"],
         ["🔑 Ключевые слова", "💡 Советы (Было→Стало)"],
         ["🎯 Вердикт", "✨ Переписать резюме"],
+        ["📤 Скачать отчёт", "🔄 Улучшить пункт"],
         ["📄 Новое резюме", "⬅️ Назад в меню"]
     ], "resize_keyboard": True}
-    send_message(chat_id, 
-        "✅ <b>Резюме загружено!</b>\n\n"
-        "🎯 Выбери, что хочешь получить:\n"
-        "• 🤖 ATS-рубрика — детальный разбор по 5 критериям\n"
-        "• 🚀 Полный разбор — всё сразу (займёт ~2 мин)\n"
-        "• 💡 Советы — готовые фразы для улучшения", 
-        reply_markup=kb)
+    send_message(chat_id, "✅ <b>Резюме загружено!</b>\n🎯 Выбери анализ:", reply_markup=kb)
 
 # ===== ВЕБХУК =====
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    global resume_cache
     chat_id = None
     try:
         data = request.get_json()
-        if not data or 'message' not in data:
-            return 'ok', 200
+        if not data or 'message' not in data: return 'ok', 200
 
         chat_id = data['message']['chat']['id']
         user = data['message']['from']
         save_user(chat_id, user.get('username','anon'), user.get('first_name',''))
-        update_activity(chat_id)
         text = data['message'].get('text', '')
-        
-        logger.info(f"User {chat_id} sent: {repr(text)[:100]}")
+        is_reply = 'reply_to_message' in data['message']
 
         # 🏠 ГЛАВНОЕ МЕНЮ
-        if text in ['/start', '🏠 Главное меню', '⬅️ Назад в меню']:
+        if text in ['/start', '⬅️ Назад в меню']:
             show_main_menu(chat_id)
             return 'ok', 200
 
         # ❓ ПОМОЩЬ
         if text == '❓ Помощь':
-            send_message(chat_id, 
-                "📘 <b>Как пользоваться:</b>\n\n"
-                "1️⃣ Нажми «📄 Загрузить резюме»\n"
-                "2️⃣ Отправь файл в формате PDF (до 10 МБ)\n"
-                "3️⃣ Дождись подтверждения и выбери анализ:\n"
-                "   • 🤖 ATS-рубрика — детальный разбор по 5 метрикам\n"
-                "   • 🚀 Полный разбор — всё сразу (~2 минуты)\n"
-                "   • 💡 Советы — готовые фразы «было → стало»\n\n"
-                "⏱️ Обычное время анализа: 20-40 секунд")
+            send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Выбери анализ\n3. Смотри историю и уровни\n⏱️ Жди 20-40 сек")
             return 'ok', 200
 
-        # 📊 СТАТИСТИКА
-        if text == '📊 Моя статистика':
-            total, a, o = get_user_stats(chat_id)
-            send_message(chat_id, 
-                f"📊 <b>Твоя статистика</b>\n\n"
-                f"📄 Проанализировано резюме: {total}\n"
-                f"{get_score_emoji(a)} Средний ATS-балл: {a:.1f}/100\n"
-                f"{get_score_emoji(o)} Средняя общая оценка: {o:.1f}/100")
+        # 📈 ИСТОРИЯ (Feature 3)
+        if text == '📈 Моя история':
+            hist = get_user_history(chat_id, 5)
+            if not hist:
+                send_message(chat_id, "📭 Истории пока нет. Загрузи резюме для первого анализа!")
+                return 'ok', 200
+            msg = "📈 <b>Твои последние анализы:</b>\n\n"
+            for i, (date, ats, ov, typ) in enumerate(hist, 1):
+                msg += f"{i}. {date[:10]} | ATS: {ats or '?'} | Общая: {ov or '?'} | {typ}\n"
+            msg += f"\n🏆 Твой уровень: {get_level(hist[0][2] if hist[0][2] else 0)}"
+            send_message(chat_id, msg)
             return 'ok', 200
 
-        # 🔐 АДМИНКА
+        # 🔐 АДМИНКА (Fix + History)
         if text == '🔐 Админ-панель':
             if chat_id not in ADMIN_IDS:
-                send_message(chat_id, "🔐 Доступ запрещён. Обратитесь к разработчику.")
+                send_message(chat_id, "🔐 Доступ запрещён")
                 return 'ok', 200
-            u, a, ats, ov = get_all_stats()
-            send_message(chat_id, 
-                f"📊 <b>Панель управления</b>\n\n"
-                f"👥 Всего пользователей: {u}\n"
-                f"📄 Всего анализов: {a}\n"
-                f"📈 Средний ATS-балл: {ats:.1f}/100\n"
-                f"📈 Средняя общая оценка: {ov:.1f}/100\n\n"
-                f"🕒 {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+            users = get_all_users(10)
+            msg = "📊 <b>Панель управления</b>\n\n👥 Последние 10 пользователей:\n"
+            for u_id, u_name, u_fn, j_date, total, avg_ats in users:
+                msg += f"• ID: `{u_id}` | {u_fn or u_name} | Анализов: {total} | Ср. ATS: {avg_ats:.0f}\n"
+            msg += "\n💡 Чтобы увидеть историю юзера, напиши:\n`/admin_hist <ID>`"
+            send_message(chat_id, msg, parse_mode="Markdown")
+            return 'ok', 200
+
+        # 👁️ АДМИН: ИСТОРИЯ ЮЗЕРА
+        if text.startswith('/admin_hist '):
+            if chat_id not in ADMIN_IDS: return 'ok', 200
+            target_id = text.split()[1]
+            hist = get_user_history(int(target_id), 5)
+            if not hist:
+                send_message(chat_id, f"🔍 У пользователя {target_id} нет анализов.")
+                return 'ok', 200
+            msg = f"📋 <b>История пользователя {target_id}</b>\n\n"
+            for date, ats, ov, typ in hist:
+                msg += f"📅 {date[:10]} | ATS: {ats} | Общая: {ov} | {typ}\n"
+            send_message(chat_id, msg)
             return 'ok', 200
 
         # 📄 ЗАГРУЗКА
         if text in ['📄 Загрузить резюме', '📄 Новое резюме']:
-            send_message(chat_id, 
-                "📎 <b>Отправь файл с резюме</b>\n\n"
-                "✅ Поддерживаемый формат: PDF\n"
-                "✅ Макс. размер: 10 МБ\n"
-                "❌ Не отправляй сканы/картинки — только текстовый PDF\n\n"
-                "🔄 Анализ начнётся автоматически после получения файла")
+            resume_cache[f"{chat_id}_mode"] = None
+            send_message(chat_id, "📎 Отправь PDF (до 10 МБ, текстовый)")
             return 'ok', 200
 
-        # 📥 ОБРАБОТКА PDF
+        # 📥 PDF
         if 'document' in data['message']:
             doc = data['message']['document']
             if doc.get('file_size', 0) > 10*1024*1024:
-                send_message(chat_id, "❌ Файл слишком большой. Макс. размер: 10 МБ.")
+                send_message(chat_id, "❌ Файл >10 МБ")
                 return 'ok', 200
             if doc.get('mime_type') != 'application/pdf':
-                send_message(chat_id, "❌ Поддерживается только формат PDF.")
+                send_message(chat_id, "❌ Нужен PDF")
                 return 'ok', 200
-            
-            send_message(chat_id, "🔍 Извлекаю текст из PDF... ⏳")
+            send_message(chat_id, "🔍 Извлекаю текст...")
             fid = doc['file_id']
             finfo = requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile?file_id={fid}", timeout=30).json()
             if not finfo.get('ok'):
-                send_message(chat_id, "❌ Не удалось получить файл. Попробуй ещё раз.")
+                send_message(chat_id, "❌ Ошибка файла")
                 return 'ok', 200
-            furl = f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{finfo['result']['file_path']}"
-            rtext = extract_text_from_pdf(requests.get(furl, timeout=60).content)
+            rtext = extract_text_from_pdf(requests.get(f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{finfo['result']['file_path']}", timeout=60).content)
             if not rtext or len(rtext.split()) < 50:
-                send_message(chat_id, "❌ Не удалось извлечь текст. Возможно, это скан или изображение. Отправь текстовый PDF.")
+                send_message(chat_id, "❌ Текст не извлечён (скан?)")
                 return 'ok', 200
             resume_cache[chat_id] = rtext
+            resume_cache[f"{chat_id}_mode"] = None
             show_analysis_menu(chat_id)
             return 'ok', 200
 
-        # 🧠 ИНДИВИДУАЛЬНЫЙ АНАЛИЗ
+        # 🎯 СРАВНЕНИЕ С ВАКАНСИЕЙ (Feature 2)
+        if text == '🎯 Сравнить с вакансией':
+            if not resume_cache.get(chat_id):
+                send_message(chat_id, "❌ Сначала загрузи резюме!")
+                return 'ok', 200
+            resume_cache[f"{chat_id}_mode"] = "job_desc"
+            send_message(chat_id, "📋 Скопируй текст вакансии и отправь сюда.\n🔄 Я сравню с твоим резюме.")
+            return 'ok', 200
+
+        if resume_cache.get(f"{chat_id}_mode") == "job_desc":
+            job_desc = text[:3000]
+            rtext = resume_cache[chat_id]
+            send_message(chat_id, "🔍 Сравниваю... ⏳")
+            prompt = f"""Сравни резюме с вакансией. ВЕРНИ JSON:
+{{"match_percent": 0-100, "missing_skills": ["skill1"], "critical_gap": "gap", "recommendations": ["rec1"]}}
+Резюме:\n{rtext[:2000]}\nВакансия:\n{job_desc}"""
+            res = analyze_part("", "custom", custom_prompt=prompt, timeout=40)
+            d = extract_json(res)
+            if d and isinstance(d, dict):
+                out = (f"🎯 <b>СОВПАДЕНИЕ</b>\n📊 {d.get('match_percent','?')}/100 {get_score_emoji(d.get('match_percent',0))}\n\n"
+                       f"❌ <b>Не хватает</b>:\n" + "\n".join(f"• {s}" for s in d.get('missing_skills', [])) + "\n\n"
+                       f"⚠️ <b>Критический пробел</b>: {d.get('critical_gap', '-')}\n\n"
+                       f"💡 <b>Что добавить</b>:\n" + "\n".join(f"• {r}" for r in d.get('recommendations', [])))
+            else:
+                out = f"🎯 Анализ: {res}"
+            send_message(chat_id, out)
+            resume_cache[f"{chat_id}_mode"] = None
+            return 'ok', 200
+
+        # 🔄 УЛУЧШИТЬ ПУНКТ (Feature 5)
+        if text == '🔄 Улучшить пункт':
+            resume_cache[f"{chat_id}_mode"] = "improve"
+            send_message(chat_id, "✍️ Напиши номер пункта из 'Слабые стороны' или просто скопируй текст, который хочешь переписать.")
+            return 'ok', 200
+
+        if resume_cache.get(f"{chat_id}_mode") == "improve":
+            rtext = resume_cache.get(chat_id)
+            if not rtext: return 'ok', 200
+            send_message(chat_id, "✍️ Переписываю указанный фрагмент... ⏳")
+            prompt = f"Перепиши этот фрагмент резюме идеально. Добавь цифры, убери воду. Только текст.\nФрагмент:\n{text}\nКонтекст резюме:\n{rtext[:2000]}"
+            send_message(chat_id, analyze_part("", "custom", custom_prompt=prompt, timeout=40))
+            resume_cache[f"{chat_id}_mode"] = None
+            return 'ok', 200
+
+        # 📤 СКАЧАТЬ ОТЧЁТ (Feature 1)
+        if text == '📤 Скачать отчёт':
+            rtext = resume_cache.get(chat_id)
+            if not rtext:
+                send_message(chat_id, "❌ Сначала загрузи резюме")
+                return 'ok', 200
+            report = f"📊 ОТЧЁТ — {datetime.now().strftime('%d.%m.%Y')}\n\n{rtext[:1000]}...\n\n💡 Полный анализ в боте: https://t.me/ResumeEasyBot"
+            url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument"
+            file = io.BytesIO(report.encode('utf-8'))
+            file.name = f"resume_{chat_id}.txt"
+            try:
+                requests.post(url, files={"document": (file.name, file, "text/plain")}, data={"chat_id": chat_id, "caption": "📄 Твой отчёт"}, timeout=30)
+                send_message(chat_id, "✅ Файл отправлен!")
+            except Exception as e:
+                send_message(chat_id, f"❌ Ошибка отправки: {e}")
+            return 'ok', 200
+
+        # 🧠 АНАЛИЗ (с сохранением в БД)
+        PART_MAP = {
+            '🤖 ATS-рубрика': 'ats_score', '💪 Сильные стороны': 'strengths',
+            '⚠️ Слабые стороны': 'weaknesses', '🔑 Ключевые слова': 'keywords',
+            '💡 Советы (Было→Стало)': 'recommendations', '🎯 Вердикт': 'final_verdict',
+            '✨ Переписать резюме': 'rewrite'
+        }
         if text in PART_MAP:
             rtext = resume_cache.get(chat_id)
             if not rtext:
                 show_main_menu(chat_id)
-                send_message(chat_id, "❌ Сессия истекла. Загрузи резюме заново.")
+                send_message(chat_id, "❌ Сессия сброшена")
                 return 'ok', 200
+            send_message(chat_id, "⏳ Анализирую...")
+            res = analyze_part(rtext, PART_MAP[text])
             
-            send_message(chat_id, "⏳ Анализирую... (20-40 сек)")
-            result = analyze_part(rtext, PART_MAP[text], timeout=60)
-            
-            # Форматируем ATS-рубрику с ПОДПИСЯМИ
+            # Сохраняем в БД, если это ATS или Вердикт
+            if PART_MAP[text] in ['ats_score', 'final_verdict']:
+                try:
+                    d = extract_json(res) if PART_MAP[text]=='ats_score' else None
+                    ats = d.get('overall', 0) if d else 0
+                    save_analysis(chat_id, rtext, ats, 0, PART_MAP[text])
+                except: pass
+
             if text == '🤖 ATS-рубрика':
-                d = extract_json(result)
+                d = extract_json(res)
                 if d and isinstance(d, dict):
-                    out = (f"🤖 <b>ATS-РУБРИКА</b> — совместимость с системами отбора:\n\n"
-                           f"📞 <b>Контакты</b>: {d.get('contacts','?')}/100\n"
-                           f"   • Email, телефон, LinkedIn/портфолио\n"
-                           f"📐 <b>Структура</b>: {d.get('structure','?')}/100\n"
-                           f"   • Логика разделов, порядок, читаемость\n"
-                           f"🔑 <b>Ключевые слова</b>: {d.get('keywords','?')}/100\n"
-                           f"   • Совпадение с требованиями вакансий\n"
-                           f"📊 <b>Достижения</b>: {d.get('achievements','?')}/100\n"
-                           f"   • Цифры, результаты, масштабы проектов\n"
-                           f"📝 <b>Формат</b>: {d.get('format','?')}/100\n"
-                           f"   • Нет воды, глаголы действия, стиль\n\n"
-                           f"🎯 <b>ИТОГОВЫЙ БАЛЛ: {d.get('overall','?')}/100</b> {get_score_emoji(d.get('overall',0))}")
-                else:
-                    out = f"🤖 ATS-анализ: {result}"
+                    out = (f"🤖 <b>ATS-РУБРИКА</b>\n"
+                           f"📞 Контакты: {d.get('contacts','?')} | 📐 Структура: {d.get('structure','?')}\n"
+                           f"🔑 Ключевые: {d.get('keywords','?')} | 📊 Достижения: {d.get('achievements','?')}\n"
+                           f"📝 Формат: {d.get('format','?')} | 🎯 <b>ИТОГО: {d.get('overall','?')}/100</b> {get_level(d.get('overall',0))}")
+                else: out = f"🤖 ATS: {res}"
             else:
-                out = result
+                out = res
             send_message(chat_id, out)
             return 'ok', 200
 
-        # 🚀 ПОЛНЫЙ РАЗБОР (ПОСЛЕДОВАТЕЛЬНО, с прогрессом)
-                # 🚀 ПОЛНЫЙ РАЗБОР (частями, чтобы не было таймаута)
+        # 🚀 ПОЛНЫЙ РАЗБОР (с сохранением)
         if text == '🚀 Полный разбор':
             rtext = resume_cache.get(chat_id)
-            if not rtext:
-                show_main_menu(chat_id)
-                send_message(chat_id, "❌ Сессия истекла. Загрузи резюме заново.")
-                return 'ok', 200
-            
-            # Отправляем по частям с короткими таймаутами
+            if not rtext: return 'ok', 200
             send_message(chat_id, "🚀 <b>Полный разбор</b>\n⏳ Делаю по шагам...")
             
-            results = {}
+            ats_r = analyze_part(rtext, "ats_score", timeout=30)
+            send_message(chat_id, "📊 Общая оценка...")
+            ov_r = analyze_part(rtext, "overall_score", timeout=20)
+            send_message(chat_id, "💪 Сильные стороны...")
+            str_r = analyze_part(rtext, "strengths", timeout=30)
+            send_message(chat_id, "⚠️ Слабые места...")
+            weak_r = analyze_part(rtext, "weaknesses", timeout=30)
+            send_message(chat_id, "💡 Советы...")
+            rec_r = analyze_part(rtext, "recommendations", timeout=30)
+
+            d = extract_json(ats_r)
+            ats_val = d.get('overall', 0) if d and isinstance(d, dict) else 0
+            ov_val = int(ov_r) if ov_r.isdigit() else 0
+            save_analysis(chat_id, rtext, ats_val, ov_val, "full_breakdown")
+
+            ats_block = (f"🤖 <b>ATS</b>\n📞 {d.get('contacts','?')} | 📐 {d.get('structure','?')} | 🔑 {d.get('keywords','?')}\n"
+                         f"📊 {d.get('achievements','?')} | 📝 {d.get('format','?')} | 🎯 <b>{d.get('overall','?')}/100</b> {get_level(d.get('overall',0))}\n\n") if d else f"🤖 ATS: {ats_r}\n\n"
             
-            # 1. ATS (самый важный)
-            try:
-                send_message(chat_id, "🔍 ATS-совместимость...")
-                results['ats'] = analyze_part(rtext, "ats_score", timeout=25)
-            except:
-                results['ats'] = "⚠️ Пропущено"
-            
-            # 2. Общая оценка
-            try:
-                send_message(chat_id, "📊 Общая оценка...")
-                results['overall'] = analyze_part(rtext, "overall_score", timeout=20)
-            except:
-                results['overall'] = "⚠️ Пропущено"
-            
-            # 3. Сильные стороны
-            try:
-                send_message(chat_id, "💪 Сильные стороны...")
-                results['strengths'] = analyze_part(rtext, "strengths", timeout=25)
-            except:
-                results['strengths'] = "⚠️ Пропущено"
-            
-            # 4. Слабые стороны
-            try:
-                send_message(chat_id, "⚠️ Слабые места...")
-                results['weaknesses'] = analyze_part(rtext, "weaknesses", timeout=25)
-            except:
-                results['weaknesses'] = "⚠️ Пропущено"
-            
-            # 5. Советы (отправляем отдельно, чтобы не обрезать)
-            try:
-                send_message(chat_id, "💡 Советы...")
-                results['recommendations'] = analyze_part(rtext, "recommendations", timeout=25)
-            except:
-                results['recommendations'] = "⚠️ Пропущено"
-            
-            # === ОТПРАВЛЯЕМ ОТЧЁТ ЧАСТЯМИ ===
-            
-            # Часть 1: Оценка
-            d = extract_json(results['ats'])
-            if d and isinstance(d, dict):
-                ats_text = (f"🤖 <b>ATS-РУБРИКА</b>\n"
-                           f"📞 {d.get('contacts','?')} | 📐 {d.get('structure','?')}\n"
-                           f"🔑 {d.get('keywords','?')} | 📊 {d.get('achievements','?')}\n"
-                           f"📝 {d.get('format','?')} | 🎯 <b>{d.get('overall','?')}/100</b>")
-            else:
-                ats_text = f"🤖 ATS: {results['ats']}"
-            
-            part1 = f"📊 <b>ОЦЕНКА</b>\n\n{ats_text}\n\n📈 Общая: {results['overall']}"
-            send_message(chat_id, part1)
-            
-            # Часть 2: Сильные/Слабые стороны
-            part2 = f"💪 <b>СИЛЬНЫЕ</b>:\n{results['strengths']}\n\n⚠️ <b>СЛАБЫЕ</b>:\n{results['weaknesses']}"
-            send_message(chat_id, part2)
-            
-            # Часть 3: Советы (отдельно, т.к. может быть длинным)
-            send_message(chat_id, f"💡 <b>СОВЕТЫ (Было → Стало)</b>:\n{results['recommendations']}")
-            
-            # Финальное сообщение
-            send_message(chat_id, "✅ <b>Готово!</b>\n\n💬 Нажми «🎯 Вердикт» для финального вывода или «✨ Переписать резюме» для идеальной версии.")
-            
+            send_message(chat_id, f"📊 <b>ОЦЕНКА</b>\n\n{ats_block}📈 Общая: {ov_r}")
+            send_message(chat_id, f"💪 <b>СИЛЬНЫЕ</b>:\n{str_r}\n\n⚠️ <b>СЛАБЫЕ</b>:\n{weak_r}")
+            send_message(chat_id, f"💡 <b>СОВЕТЫ</b>:\n{rec_r}\n\n✅ Готово! Уровень: {get_level(ats_val)}")
             return 'ok', 200
 
-        # Неизвестная команда
         return 'ok', 200
 
     except Exception as e:
-        logger.error(f"Webhook crash: {e}", exc_info=True)
-        if chat_id:
-            send_message(chat_id, f"❌ Произошла ошибка: {str(e)[:150]}")
+        logger.error(f"Crash: {e}", exc_info=True)
+        if chat_id: send_message(chat_id, f"❌ Ошибка: {str(e)[:100]}")
         return 'error', 500
 
 @app.route('/', methods=['GET','HEAD'])
-def index(): 
-    return '✅ ResumeEasy Bot Online', 200
-
+def index(): return '✅ Online', 200
 @app.route('/health')
-def health(): 
-    return {"status":"ok", "service":"ResumeEasy Bot"}, 200
+def health(): return {"status":"ok"}, 200
 
-# Инициализация
 if __name__ != "__main__":
     init_db()
-    logger.info("🚀 ResumeEasy Bot started")
+    logger.info("🚀 Started")
