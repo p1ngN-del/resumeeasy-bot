@@ -9,6 +9,11 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 ADMIN_IDS = set(map(int, os.environ.get("ADMIN_IDS", "0").split(",")))
 
+# 🎥 ID видео для приветствия (замените на свой file_id после загрузки)
+WELCOME_VIDEO_FILE_ID = os.environ.get("WELCOME_VIDEO_FILE_ID", "")
+# ИЛИ используйте URL:
+WELCOME_VIDEO_URL = os.environ.get("WELCOME_VIDEO_URL", "")
+
 if not TELEGRAM_TOKEN or not DEEPSEEK_API_KEY:
     raise ValueError("Missing tokens")
 
@@ -87,8 +92,41 @@ def send_message(chat_id, text, reply_markup=None, parse_mode="HTML"):
         except Exception as e:
             logger.error(f"Send error: {e}")
 
+def send_video(chat_id, caption, reply_markup=None):
+    """Отправляет видео в чат"""
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendVideo"
+    payload = {
+        "chat_id": chat_id,
+        "caption": caption,
+        "parse_mode": "HTML"
+    }
+    
+    if WELCOME_VIDEO_FILE_ID:
+        # Используем загруженный файл по file_id
+        payload["video"] = WELCOME_VIDEO_FILE_ID
+    elif WELCOME_VIDEO_URL:
+        # Используем URL видео
+        payload["video"] = WELCOME_VIDEO_URL
+    else:
+        # Если видео нет, отправляем только текст
+        logger.warning("No video configured, sending text only")
+        send_message(chat_id, caption, reply_markup)
+        return
+    
+    if reply_markup:
+        payload["reply_markup"] = json.dumps(reply_markup)
+    
+    try:
+        requests.post(url, json=payload, timeout=60)
+    except Exception as e:
+        logger.error(f"Video send error: {e}")
+        # Фолбэк на текст
+        send_message(chat_id, caption, reply_markup)
+
 def extract_json(text):
-    text = re.sub(r'```json\s*|\s*```', '', text).strip()
+    text = re.sub(r'
+```json\s*|\s*
+```', '', text).strip()
     try: return json.loads(text)
     except:
         m = re.search(r'\{.*\}', text, re.DOTALL)
@@ -171,13 +209,30 @@ def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
     except: return "⏳ Попробуй через минуту"
 
 # ===== МЕНЮ =====
-def show_main_menu(chat_id):
+def show_main_menu(chat_id, with_video=True):
     kb = {"keyboard": [
         ["📄 Загрузить резюме"],
         ["🎯 Сравнить с вакансией", "📈 Моя история"],
         ["❓ Помощь", "🔐 Админ-панель"]
     ], "resize_keyboard": True}
-    send_message(chat_id, "👋 <b>ResumeEasy Bot</b>\n📊 ATS-анализ, история, уровни", reply_markup=kb)
+    
+    welcome_text = """👋 <b>Добро пожаловать в ResumeEasy Bot!</b>
+
+🤖 <b>ATS Killer</b> — ваш персональный помощник для создания идеального резюме
+
+🎯 <b>Что умеет бот:</b>
+• 📊 ATS-анализ резюме
+• 📈 Отслеживание прогресса
+• 🎯 Сравнение с вакансиями
+• 💡 Персональные рекомендации
+• 🏆 Определение уровня
+
+🚀 <b>Загрузите резюме и начните прямо сейчас!</b>"""
+
+    if with_video and (WELCOME_VIDEO_FILE_ID or WELCOME_VIDEO_URL):
+        send_video(chat_id, welcome_text, reply_markup=kb)
+    else:
+        send_message(chat_id, welcome_text, reply_markup=kb)
 
 def show_analysis_menu(chat_id):
     kb = {"keyboard": [
@@ -206,12 +261,24 @@ def webhook():
 
         # 🏠 МЕНЮ
         if text in ['/start', '⬅️ Назад в меню']:
-            show_main_menu(chat_id)
+            show_main_menu(chat_id, with_video=(text == '/start'))
             return 'ok', 200
 
         # ❓ ПОМОЩЬ
         if text == '❓ Помощь':
-            send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Выбери анализ")
+            send_message(chat_id, "📘 <b>Как пользоваться:</b>\n\n"
+                        "1️⃣ <b>Загрузите резюме</b> (PDF до 10 МБ)\n"
+                        "2️⃣ <b>Выберите тип анализа:</b>\n"
+                        "   • 🚀 Полный разбор — комплексный анализ\n"
+                        "   • 🤖 ATS-рубрика — проверка на ATS-совместимость\n"
+                        "   • 💪 Сильные стороны — что уже хорошо\n"
+                        "   • ⚠️ Слабые стороны — что улучшить\n"
+                        "   • 🔑 Ключевые слова — для поиска\n"
+                        "   • 💡 Советы — конкретные рекомендации\n"
+                        "   • 🎯 Вердикт — итоговая оценка\n"
+                        "   • ✨ Переписать резюме — AI-улучшение\n\n"
+                        "3️⃣ <b>Сравните с вакансией</b> — узнайте match%\n\n"
+                        "💡 <b>Совет:</b> Загружайте резюме в PDF для лучшего качества анализа")
             return 'ok', 200
 
         # 📈 ИСТОРИЯ
@@ -467,3 +534,4 @@ def health(): return {"status":"ok"}, 200
 if __name__ != "__main__":
     init_db()
     logger.info("🚀 Started")
+
