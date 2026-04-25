@@ -8,7 +8,6 @@ from PyPDF2 import PdfReader
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 ADMIN_IDS = set(map(int, os.environ.get("ADMIN_IDS", "0").split(",")))
-DB_NAME = os.environ.get("DB_PATH", "/data/resumeeasy.db")  # Для диска Render
 
 if not TELEGRAM_TOKEN or not DEEPSEEK_API_KEY:
     raise ValueError("Missing tokens")
@@ -17,11 +16,12 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-resume_cache = {}  # Хранит резюме и состояния сессий
+DB_NAME = "resumeeasy.db"  # ✅ Локальная БД (работает на free tier)
+resume_cache = {}
 
 # ===== БАЗА ДАННЫХ =====
 def init_db():
-    os.makedirs(os.path.dirname(DB_NAME), exist_ok=True)
+    # ✅ Убрали os.makedirs — создаём БД в текущей папке
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute('''CREATE TABLE IF NOT EXISTS users (
@@ -77,7 +77,6 @@ def get_all_users(limit=10):
 
 # ===== УТИЛИТЫ =====
 def send_message(chat_id, text, reply_markup=None, parse_mode="HTML"):
-    # Telegram limit: 4096 chars. Split if needed.
     chunks = [text[i:i+4000] for i in range(0, len(text), 4000)]
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     for chunk in chunks:
@@ -162,7 +161,7 @@ def show_main_menu(chat_id):
         ["🎯 Сравнить с вакансией", "📈 Моя история"],
         ["❓ Помощь", "🔐 Админ-панель"]
     ], "resize_keyboard": True}
-    send_message(chat_id, "👋 <b>ResumeEasy Bot</b>\n📊 ATS-анализ, история, уровни\n🚀 Выбери действие", reply_markup=kb)
+    send_message(chat_id, "👋 <b>ResumeEasy Bot</b>\n📊 ATS-анализ, история, уровни", reply_markup=kb)
 
 def show_analysis_menu(chat_id):
     kb = {"keyboard": [
@@ -181,48 +180,46 @@ def webhook():
     chat_id = None
     try:
         data = request.get_json()
-        if not data or 'message' not in data: return 'ok', 200
+        if not data or 'message' not in  return 'ok', 200
 
         chat_id = data['message']['chat']['id']
         user = data['message']['from']
         save_user(chat_id, user.get('username','anon'), user.get('first_name',''))
         text = data['message'].get('text', '')
-        is_reply = 'reply_to_message' in data['message']
 
-        # 🏠 ГЛАВНОЕ МЕНЮ
+        # 🏠 МЕНЮ
         if text in ['/start', '⬅️ Назад в меню']:
             show_main_menu(chat_id)
             return 'ok', 200
 
         # ❓ ПОМОЩЬ
         if text == '❓ Помощь':
-            send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Выбери анализ\n3. Смотри историю и уровни\n⏱️ Жди 20-40 сек")
+            send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Выбери анализ\n3. Смотри историю и уровни")
             return 'ok', 200
 
-        # 📈 ИСТОРИЯ (Feature 3)
+        # 📈 ИСТОРИЯ
         if text == '📈 Моя история':
             hist = get_user_history(chat_id, 5)
             if not hist:
-                send_message(chat_id, "📭 Истории пока нет. Загрузи резюме для первого анализа!")
+                send_message(chat_id, "📭 Истории пока нет. Загрузи резюме!")
                 return 'ok', 200
-            msg = "📈 <b>Твои последние анализы:</b>\n\n"
+            msg = "📈 <b>Твои анализы:</b>\n\n"
             for i, (date, ats, ov, typ) in enumerate(hist, 1):
-                msg += f"{i}. {date[:10]} | ATS: {ats or '?'} | Общая: {ov or '?'} | {typ}\n"
-            msg += f"\n🏆 Твой уровень: {get_level(hist[0][2] if hist[0][2] else 0)}"
+                msg += f"{i}. {date[:10]} | ATS: {ats or '?'} | Общая: {ov or '?'}\n"
+            msg += f"\n🏆 Уровень: {get_level(hist[0][2] if hist[0][2] else 0)}"
             send_message(chat_id, msg)
             return 'ok', 200
 
-        # 🔐 АДМИНКА (Fix + History)
+        # 🔐 АДМИНКА
         if text == '🔐 Админ-панель':
             if chat_id not in ADMIN_IDS:
                 send_message(chat_id, "🔐 Доступ запрещён")
                 return 'ok', 200
             users = get_all_users(10)
-            msg = "📊 <b>Панель управления</b>\n\n👥 Последние 10 пользователей:\n"
+            msg = "📊 <b>Панель управления</b>\n👥 Пользователи:\n"
             for u_id, u_name, u_fn, j_date, total, avg_ats in users:
-                msg += f"• ID: `{u_id}` | {u_fn or u_name} | Анализов: {total} | Ср. ATS: {avg_ats:.0f}\n"
-            msg += "\n💡 Чтобы увидеть историю юзера, напиши:\n`/admin_hist <ID>`"
-            send_message(chat_id, msg, parse_mode="Markdown")
+                msg += f"• {u_fn or u_name} | Анализов: {total} | Ср. ATS: {avg_ats or 0:.0f}\n"
+            send_message(chat_id, msg)
             return 'ok', 200
 
         # 👁️ АДМИН: ИСТОРИЯ ЮЗЕРА
@@ -233,16 +230,16 @@ def webhook():
             if not hist:
                 send_message(chat_id, f"🔍 У пользователя {target_id} нет анализов.")
                 return 'ok', 200
-            msg = f"📋 <b>История пользователя {target_id}</b>\n\n"
+            msg = f"📋 История пользователя {target_id}\n\n"
             for date, ats, ov, typ in hist:
-                msg += f"📅 {date[:10]} | ATS: {ats} | Общая: {ov} | {typ}\n"
+                msg += f"📅 {date[:10]} | ATS: {ats} | Общая: {ov}\n"
             send_message(chat_id, msg)
             return 'ok', 200
 
         # 📄 ЗАГРУЗКА
         if text in ['📄 Загрузить резюме', '📄 Новое резюме']:
             resume_cache[f"{chat_id}_mode"] = None
-            send_message(chat_id, "📎 Отправь PDF (до 10 МБ, текстовый)")
+            send_message(chat_id, "📎 Отправь PDF (до 10 МБ)")
             return 'ok', 200
 
         # 📥 PDF
@@ -262,20 +259,20 @@ def webhook():
                 return 'ok', 200
             rtext = extract_text_from_pdf(requests.get(f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{finfo['result']['file_path']}", timeout=60).content)
             if not rtext or len(rtext.split()) < 50:
-                send_message(chat_id, "❌ Текст не извлечён (скан?)")
+                send_message(chat_id, "❌ Текст не извлечён")
                 return 'ok', 200
             resume_cache[chat_id] = rtext
             resume_cache[f"{chat_id}_mode"] = None
             show_analysis_menu(chat_id)
             return 'ok', 200
 
-        # 🎯 СРАВНЕНИЕ С ВАКАНСИЕЙ (Feature 2)
+        # 🎯 СРАВНЕНИЕ С ВАКАНСИЕЙ
         if text == '🎯 Сравнить с вакансией':
             if not resume_cache.get(chat_id):
                 send_message(chat_id, "❌ Сначала загрузи резюме!")
                 return 'ok', 200
             resume_cache[f"{chat_id}_mode"] = "job_desc"
-            send_message(chat_id, "📋 Скопируй текст вакансии и отправь сюда.\n🔄 Я сравню с твоим резюме.")
+            send_message(chat_id, "📋 Скопируй текст вакансии и отправь сюда.")
             return 'ok', 200
 
         if resume_cache.get(f"{chat_id}_mode") == "job_desc":
@@ -290,7 +287,6 @@ def webhook():
             if d and isinstance(d, dict):
                 out = (f"🎯 <b>СОВПАДЕНИЕ</b>\n📊 {d.get('match_percent','?')}/100 {get_score_emoji(d.get('match_percent',0))}\n\n"
                        f"❌ <b>Не хватает</b>:\n" + "\n".join(f"• {s}" for s in d.get('missing_skills', [])) + "\n\n"
-                       f"⚠️ <b>Критический пробел</b>: {d.get('critical_gap', '-')}\n\n"
                        f"💡 <b>Что добавить</b>:\n" + "\n".join(f"• {r}" for r in d.get('recommendations', [])))
             else:
                 out = f"🎯 Анализ: {res}"
@@ -298,28 +294,28 @@ def webhook():
             resume_cache[f"{chat_id}_mode"] = None
             return 'ok', 200
 
-        # 🔄 УЛУЧШИТЬ ПУНКТ (Feature 5)
+        # 🔄 УЛУЧШИТЬ ПУНКТ
         if text == '🔄 Улучшить пункт':
             resume_cache[f"{chat_id}_mode"] = "improve"
-            send_message(chat_id, "✍️ Напиши номер пункта из 'Слабые стороны' или просто скопируй текст, который хочешь переписать.")
+            send_message(chat_id, "✍️ Напиши текст, который хочешь переписать.")
             return 'ok', 200
 
         if resume_cache.get(f"{chat_id}_mode") == "improve":
             rtext = resume_cache.get(chat_id)
             if not rtext: return 'ok', 200
-            send_message(chat_id, "✍️ Переписываю указанный фрагмент... ⏳")
-            prompt = f"Перепиши этот фрагмент резюме идеально. Добавь цифры, убери воду. Только текст.\nФрагмент:\n{text}\nКонтекст резюме:\n{rtext[:2000]}"
+            send_message(chat_id, "✍️ Переписываю... ⏳")
+            prompt = f"Перепиши этот фрагмент идеально. Добавь цифры, убери воду. Только текст.\nФрагмент:\n{text}\nКонтекст:\n{rtext[:2000]}"
             send_message(chat_id, analyze_part("", "custom", custom_prompt=prompt, timeout=40))
             resume_cache[f"{chat_id}_mode"] = None
             return 'ok', 200
 
-        # 📤 СКАЧАТЬ ОТЧЁТ (Feature 1)
+        # 📤 СКАЧАТЬ ОТЧЁТ
         if text == '📤 Скачать отчёт':
             rtext = resume_cache.get(chat_id)
             if not rtext:
                 send_message(chat_id, "❌ Сначала загрузи резюме")
                 return 'ok', 200
-            report = f"📊 ОТЧЁТ — {datetime.now().strftime('%d.%m.%Y')}\n\n{rtext[:1000]}...\n\n💡 Полный анализ в боте: https://t.me/ResumeEasyBot"
+            report = f"📊 ОТЧЁТ — {datetime.now().strftime('%d.%m.%Y')}\n\n{rtext[:1000]}...\n\n💡 Полный анализ: https://t.me/ResumeEasyBot"
             url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendDocument"
             file = io.BytesIO(report.encode('utf-8'))
             file.name = f"resume_{chat_id}.txt"
@@ -327,10 +323,10 @@ def webhook():
                 requests.post(url, files={"document": (file.name, file, "text/plain")}, data={"chat_id": chat_id, "caption": "📄 Твой отчёт"}, timeout=30)
                 send_message(chat_id, "✅ Файл отправлен!")
             except Exception as e:
-                send_message(chat_id, f"❌ Ошибка отправки: {e}")
+                send_message(chat_id, f"❌ Ошибка: {e}")
             return 'ok', 200
 
-        # 🧠 АНАЛИЗ (с сохранением в БД)
+        # 🧠 АНАЛИЗ
         PART_MAP = {
             '🤖 ATS-рубрика': 'ats_score', '💪 Сильные стороны': 'strengths',
             '⚠️ Слабые стороны': 'weaknesses', '🔑 Ключевые слова': 'keywords',
@@ -346,7 +342,7 @@ def webhook():
             send_message(chat_id, "⏳ Анализирую...")
             res = analyze_part(rtext, PART_MAP[text])
             
-            # Сохраняем в БД, если это ATS или Вердикт
+            # Сохраняем в БД
             if PART_MAP[text] in ['ats_score', 'final_verdict']:
                 try:
                     d = extract_json(res) if PART_MAP[text]=='ats_score' else None
@@ -367,7 +363,7 @@ def webhook():
             send_message(chat_id, out)
             return 'ok', 200
 
-        # 🚀 ПОЛНЫЙ РАЗБОР (с сохранением)
+        # 🚀 ПОЛНЫЙ РАЗБОР
         if text == '🚀 Полный разбор':
             rtext = resume_cache.get(chat_id)
             if not rtext: return 'ok', 200
