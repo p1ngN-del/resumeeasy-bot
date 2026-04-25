@@ -9,9 +9,9 @@ import json
 from datetime import datetime
 from flask import Flask, request
 from PyPDF2 import PdfReader
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# 🔐 Настройки
+# 🔐 НАСТРОЙКИ (не трогай, всё берётся из Render)
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 ADMIN_IDS = set(map(int, os.environ.get("ADMIN_IDS", "0").split(",")))
@@ -105,7 +105,6 @@ def send_message(chat_id, text, reply_markup=None, parse_mode="HTML"):
         logger.error(f"Send error: {e}")
 
 def extract_json(text):
-    """Извлекает JSON из ответа AI, даже если там есть лишний текст"""
     text = re.sub(r'```json\s*|\s*```', '', text).strip()
     try:
         return json.loads(text)
@@ -154,7 +153,6 @@ def analyze_part(resume_text, part_name):
 {{"contacts": 0-100, "structure": 0-100, "keywords": 0-100, "achievements": 0-100, "format": 0-100, "overall": 0-100}}
 
 Резюме:\n{resume_text[:4000]}""",
-
         "overall_score": f"Оцени общее качество резюме от 0 до 100. Ответь ТОЛЬКО числом.\nРезюме:\n{resume_text[:4000]}",
         "strengths": f"""Выдели 5-7 сильных сторон.
 ПРАВИЛА: ✅ в начале, обычный текст, БЕЗ *, #, HTML.
@@ -210,9 +208,8 @@ def webhook():
     global resume_cache
     chat_id = None
     try:
-        # 🔐 Проверка вебхука
         if request.headers.get('X-Telegram-Bot-Api-Secret-Token') != WEBHOOK_SECRET:
-            logger.warning("⚠️ Unauthorized webhook attempt")
+            logger.warning("⚠️ Unauthorized webhook")
             return 'unauthorized', 401
         
         data = request.get_json()
@@ -225,8 +222,6 @@ def webhook():
         update_activity(chat_id)
         text = data['message'].get('text', '')
 
-        logger.info(f"User {chat_id} sent: {text[:50]}")
-
         # 🏠 ГЛАВНОЕ МЕНЮ
         if text in ['/start', '🏠 Главное меню', '⬅️ Назад в меню']:
             show_main_menu(chat_id)
@@ -234,78 +229,61 @@ def webhook():
 
         # ❓ ПОМОЩЬ
         if text == '❓ Помощь':
-            send_message(chat_id, 
-                "📘 <b>Как пользоваться:</b>\n\n"
-                "1️⃣ Нажми «Загрузить резюме»\n"
-                "2️⃣ Отправь PDF (до 10 МБ)\n"
-                "3️⃣ Выбери анализ в меню\n\n"
-                "⏱️ Обычно занимает 20-40 сек")
+            send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1️⃣ Загрузи резюме (PDF)\n2️⃣ Выбери анализ\n⏱️ Жди 20-40 сек")
             return 'ok', 200
 
         # 📊 СТАТИСТИКА
         if text == '📊 Моя статистика':
             total, avg_ats, avg_ov = get_user_stats(chat_id)
-            send_message(chat_id, 
-                f"📊 <b>Твоя статистика</b>\n\n"
-                f"📄 Анализов: {total}\n"
-                f"{get_score_emoji(avg_ats)} ATS: {avg_ats:.1f}/100\n"
-                f"{get_score_emoji(avg_ov)} Общая: {avg_ov:.1f}/100")
+            send_message(chat_id, f"📊 <b>Твоя статистика</b>\n📄 Анализов: {total}\n{get_score_emoji(avg_ats)} ATS: {avg_ats:.1f}/100\n{get_score_emoji(avg_ov)} Общая: {avg_ov:.1f}/100")
             return 'ok', 200
 
         # 🔐 АДМИНКА
         if text == '🔐 Админ-панель':
-            logger.info(f"Admin attempt from {chat_id}, allowed IDs: {ADMIN_IDS}")
             if chat_id not in ADMIN_IDS:
-                send_message(chat_id, "🔐 Доступ запрещён. Ваш ID не в списке админов.")
+                send_message(chat_id, "🔐 Доступ запрещён")
                 return 'ok', 200
             u, a, ats, ov = get_all_stats()
-            send_message(chat_id, 
-                f"📊 <b>Панель управления</b>\n\n"
-                f"👥 Юзеров: {u}\n📄 Анализов: {a}\n"
-                f"📈 Ср. ATS: {ats:.1f} | Общая: {ov:.1f}\n"
-                f"🕒 {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+            send_message(chat_id, f"📊 <b>Панель управления</b>\n👥 Юзеров: {u}\n📄 Анализов: {a}\n📈 ATS: {ats:.1f} | Общая: {ov:.1f}\n🕒 {datetime.now().strftime('%d.%m.%Y %H:%M')}")
             return 'ok', 200
 
         # 📄 ЗАГРУЗКА
         if text in ['📄 Загрузить резюме', '📄 Новое резюме']:
-            send_message(chat_id, "📎 Отправь PDF-файл с резюме.\n⚠️ Макс. 10 МБ, текстовый (не скан)")
+            send_message(chat_id, "📎 Отправь PDF-файл (до 10 МБ, не скан)")
             return 'ok', 200
 
-        # 📥 ОБРАБОТКА PDF
+        # 📥 PDF
         if 'document' in data['message']:
             doc = data['message']['document']
             if doc.get('file_size', 0) > 10*1024*1024:
-                send_message(chat_id, "❌ Файл >10 МБ. Сожми или конвертируй.")
+                send_message(chat_id, "❌ Файл >10 МБ")
                 return 'ok', 200
             if doc.get('mime_type') != 'application/pdf':
-                send_message(chat_id, "❌ Нужен PDF. DOCX пока не поддерживается.")
+                send_message(chat_id, "❌ Нужен PDF")
                 return 'ok', 200
-
             send_message(chat_id, "🔍 Извлекаю текст... ⏳")
             fid = doc['file_id']
             finfo = requests.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile?file_id={fid}", timeout=30).json()
             if not finfo.get('ok'):
-                send_message(chat_id, "❌ Ошибка скачивания файла.")
+                send_message(chat_id, "❌ Ошибка файла")
                 return 'ok', 200
-            
             furl = f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{finfo['result']['file_path']}"
             rtext = extract_text_from_pdf(requests.get(furl, timeout=60).content)
             if not rtext or len(rtext.split()) < 50:
-                send_message(chat_id, "❌ Текст не извлечён. Возможно, это скан или картинка.")
+                send_message(chat_id, "❌ Текст не извлечён (возможно, скан)")
                 return 'ok', 200
-
             resume_cache[chat_id] = rtext
             show_analysis_menu(chat_id)
             return 'ok', 200
 
-        # 🧠 ИНДИВИДУАЛЬНЫЙ АНАЛИЗ
+        # 🧠 АНАЛИЗ
         part_map = {
             '🤖 ATS-рубрика': 'ats_score',
             '💪 Сильные стороны': 'strengths',
             '⚠️ Слабые стороны': 'weaknesses',
             '🔑 Ключевые слова': 'keywords',
             '💡 Советы (Было→Стало)': 'recommendations',
-            '🎯 Вердикт': 'final_verdict',  # ✅ Теперь с 🎯
+            '🎯 Вердикт': 'final_verdict',
             '✨ Переписать резюме': 'rewrite'
         }
         
@@ -315,26 +293,16 @@ def webhook():
                 show_main_menu(chat_id)
                 send_message(chat_id, "❌ Сессия сброшена. Загрузи резюме заново.")
                 return 'ok', 200
-
-            send_message(chat_id, "⏳ Анализирую... (15-30 сек)")
+            send_message(chat_id, "⏳ Анализирую...")
             result = analyze_part(rtext, part_map[text])
-            
-            # Форматируем ATS-рубрику
             if text == '🤖 ATS-рубрика':
                 data = extract_json(result)
                 if data and isinstance(data, dict):
-                    out = (f"🤖 <b>ATS-РУБРИКА</b>\n\n"
-                           f"📞 Контакты: {data.get('contacts', '?')}/100\n"
-                           f"📐 Структура: {data.get('structure', '?')}/100\n"
-                           f"🔑 Ключевые слова: {data.get('keywords', '?')}/100\n"
-                           f"📊 Достижения: {data.get('achievements', '?')}/100\n"
-                           f"📝 Формат: {data.get('format', '?')}/100\n\n"
-                           f"🎯 <b>ИТОГО: {data.get('overall', '?')}/100</b> {get_score_emoji(data.get('overall',0))}")
+                    out = f"🤖 <b>ATS-РУБРИКА</b>\n📞 Контакты: {data.get('contacts', '?')}/100\n📐 Структура: {data.get('structure', '?')}/100\n🔑 Ключевые: {data.get('keywords', '?')}/100\n📊 Достижения: {data.get('achievements', '?')}/100\n📝 Формат: {data.get('format', '?')}/100\n\n🎯 <b>ИТОГО: {data.get('overall', '?')}/100</b> {get_score_emoji(data.get('overall',0))}"
                 else:
                     out = f"🤖 ATS: {result}"
             else:
                 out = result
-
             send_message(chat_id, out)
             return 'ok', 200
 
@@ -343,48 +311,26 @@ def webhook():
             rtext = resume_cache.get(chat_id)
             if not rtext:
                 show_main_menu(chat_id)
-                send_message(chat_id, "❌ Сессия сброшена. Загрузи резюме заново.")
+                send_message(chat_id, "❌ Сессия сброшена")
                 return 'ok', 200
-
-            send_message(chat_id, "🚀 Запускаю глубокий анализ... ⏳ (30-50 сек)")
+            send_message(chat_id, "🚀 Глубокий анализ... ⏳")
             with ThreadPoolExecutor(max_workers=5) as ex:
-                futures = {
-                    ex.submit(analyze_part, rtext, "ats_score"): "ats",
-                    ex.submit(analyze_part, rtext, "overall_score"): "overall",
-                    ex.submit(analyze_part, rtext, "strengths"): "strengths",
-                    ex.submit(analyze_part, rtext, "weaknesses"): "weaknesses",
-                    ex.submit(analyze_part, rtext, "recommendations"): "recommendations"
-                }
-                results = {}
-                for future in as_completed(futures):
-                    label = futures[future]
-                    try:
-                        results[label] = future.result()
-                    except Exception as e:
-                        logger.error(f"Task {label} failed: {e}")
-                        results[label] = "Ошибка"
-
-            # Формируем отчёт
-            ats_d = extract_json(results.get("ats", ""))
+                f_ats = ex.submit(analyze_part, rtext, "ats_score")
+                f_ov = ex.submit(analyze_part, rtext, "overall_score")
+                f_str = ex.submit(analyze_part, rtext, "strengths")
+                f_weak = ex.submit(analyze_part, rtext, "weaknesses")
+                f_rec = ex.submit(analyze_part, rtext, "recommendations")
+                ats_r, ov_r, str_r, weak_r, rec_r = f_ats.result(), f_ov.result(), f_str.result(), f_weak.result(), f_rec.result()
+            ats_d = extract_json(ats_r)
             ats_block = ""
             if ats_d and isinstance(ats_d, dict):
-                ats_block = (f"🤖 <b>ATS-РУБРИКА</b>\n"
-                             f"📞 {ats_d.get('contacts', '?')} | 📐 {ats_d.get('structure', '?')} | 🔑 {ats_d.get('keywords', '?')}\n"
-                             f"📊 {ats_d.get('achievements', '?')} | 📝 {ats_d.get('format', '?')} | 🎯 <b>{ats_d.get('overall', '?')}/100</b>\n\n")
+                ats_block = f"🤖 <b>ATS</b>\n📞 {ats_d.get('contacts','?')} | 📐 {ats_d.get('structure','?')} | 🔑 {ats_d.get('keywords','?')}\n📊 {ats_d.get('achievements','?')} | 📝 {ats_d.get('format','?')} | 🎯 <b>{ats_d.get('overall','?')}/100</b>\n\n"
             else:
-                ats_block = f"🤖 ATS: {results.get('ats', 'N/A')}\n\n"
-
-            full = (f"📊 <b>ПОЛНЫЙ ОТЧЁТ</b>\n\n"
-                    f"{ats_block}"
-                    f"📈 Общая: {results.get('overall', 'N/A')}\n\n"
-                    f"💪 <b>СИЛЬНЫЕ:</b>\n{results.get('strengths', 'N/A')}\n\n"
-                    f"⚠️ <b>СЛАБЫЕ:</b>\n{results.get('weaknesses', 'N/A')}\n\n"
-                    f"💡 <b>СОВЕТЫ:</b>\n{results.get('recommendations', 'N/A')}")
+                ats_block = f"🤖 ATS: {ats_r}\n\n"
+            full = f"📊 <b>ПОЛНЫЙ ОТЧЁТ</b>\n\n{ats_block}📈 Общая: {ov_r}\n\n💪 <b>СИЛЬНЫЕ:</b>\n{str_r}\n\n⚠️ <b>СЛАБЫЕ:</b>\n{weak_r}\n\n💡 <b>СОВЕТЫ:</b>\n{rec_r}"
             send_message(chat_id, full)
             return 'ok', 200
 
-        # Неизвестная команда
-        logger.info(f"Unknown command from {chat_id}: {text}")
         return 'ok', 200
 
     except Exception as e:
@@ -401,8 +347,7 @@ def index():
 def health(): 
     return {"status": "ok", "db": "ready"}, 200
 
-# Для локального тестирования
-if __name__ == "__main__":
+# Инициализация
+if __name__ != "__main__":
     init_db()
-    logger.info("🚀 ResumeEasy Bot started (local mode)")
-    app.run(host="0.0.0.0", port=5000)
+    logger.info("🚀 ResumeEasy Bot started")
