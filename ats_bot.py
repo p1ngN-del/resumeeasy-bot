@@ -17,6 +17,7 @@ app = Flask(__name__)
 DB_NAME = "resumeeasy.db"
 resume_cache = {}
 
+# ===== БАЗА ДАННЫХ =====
 def init_db():
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
@@ -83,19 +84,37 @@ def send_message(chat_id, text, reply_markup=None, parse_mode="HTML"):
         except Exception as e:
             logger.error(f"Send error: {e}")
 
+def send_video(chat_id, video_path, caption=""):
+    """Отправка видео"""
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendVideo"
+    try:
+        with open(video_path, 'rb') as video:
+            files = {"video": video}
+            data = {"chat_id": chat_id, "caption": caption, "parse_mode": "HTML"}
+            response = requests.post(url, files=files, data=data, timeout=60)
+            return response.json()
+    except Exception as e:
+        logger.error(f"Video send error: {e}")
+        return None
+
 def extract_json(text):
+    # ИСПРАВЛЕНО: правильный regex
     text = re.sub(r'```json\s*|\s*```', '', text).strip()
-    try: return json.loads(text)
+    try: 
+        return json.loads(text)
     except:
-        m = re.search(r'\{.*\}', text, re.DOTALL)
+        m = re.search(r'\{.*?\}', text, re.DOTALL)
         if m:
-            try: return json.loads(m.group())
-            except: pass
+            try: 
+                return json.loads(m.group())
+            except: 
+                pass
     return None
 
 def extract_text_from_pdf(file_bytes):
     try:
         pdf = PdfReader(io.BytesIO(file_bytes))
+        # ИСПРАВЛЕНО: \n вместо n
         return "\n".join(p.extract_text() or "" for p in pdf.pages).strip()
     except Exception as e:
         logger.error(f"PDF error: {e}")
@@ -108,7 +127,8 @@ def get_level(score):
         if s >= 75: return "⭐ Профи"
         if s >= 60: return "🚀 В процессе"
         return "🌱 Новичок"
-    except: return "🌱 Новичок"
+    except: 
+        return "🌱 Новичок"
 
 def get_score_emoji(score):
     try:
@@ -117,7 +137,8 @@ def get_score_emoji(score):
         if s >= 70: return "🟡"
         if s >= 50: return "🟠"
         return "🔴"
-    except: return "⚪"
+    except: 
+        return "⚪"
 
 def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
     url = "https://api.deepseek.com/v1/chat/completions"
@@ -152,10 +173,12 @@ def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
         r = requests.post(url, headers=headers, json=payload, timeout=timeout)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"].strip()
-    except: return "⏳ Попробуй через минуту"
+    except: 
+        return "⏳ Попробуй через минуту"
 
 def show_main_menu(chat_id):
     kb = {"keyboard": [["📄 Загрузить резюме"], ["🎯 Сравнить с вакансией", "📈 Моя история"], ["❓ Помощь", "🔐 Админ-панель"]], "resize_keyboard": True}
+    # ИСПРАВЛЕНО: <b> вместо **, \n вместо n
     send_message(chat_id, "👋 <b>ResumeEasy Bot</b>\n📊 ATS-анализ, история, уровни", reply_markup=kb)
 
 def show_analysis_menu(chat_id):
@@ -173,13 +196,23 @@ def webhook():
         user = data['message']['from']
         save_user(chat_id, user.get('username','anon'), user.get('first_name',''))
         text = data['message'].get('text', '')
-        
-        if text in ['/start', '⬅️ Назад в меню']:
+
+        if text == '/start':
+            # ОТПРАВКА ВИДЕО ПРИ СТАРТЕ
+            video_path = os.path.join(os.path.dirname(__file__), 'welcome.mp4')
+            if os.path.exists(video_path):
+                send_video(chat_id, video_path, "👋 <b>Добро пожаловать в ResumeEasy Bot!</b>\n📊 ATS-анализ резюме с помощью ИИ")
             show_main_menu(chat_id)
             return 'ok', 200
+            
+        if text == '⬅️ Назад в меню':
+            show_main_menu(chat_id)
+            return 'ok', 200
+            
         if text == '❓ Помощь':
             send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Выбери анализ")
             return 'ok', 200
+            
         if text == '📈 Моя история':
             hist = get_user_history(chat_id, 5)
             if not hist:
@@ -191,6 +224,7 @@ def webhook():
             msg += f"\n🏆 Уровень: {get_level(hist[0][2] if hist[0][2] else 0)}"
             send_message(chat_id, msg)
             return 'ok', 200
+            
         if text == '🔐 Админ-панель':
             if chat_id not in ADMIN_IDS:
                 send_message(chat_id, "🔐 Доступ запрещён")
@@ -202,8 +236,10 @@ def webhook():
                 msg += f"• {u_fn or u_name} | Анализов: {total} | Ср. ATS: {avg_val:.0f}\n"
             send_message(chat_id, msg)
             return 'ok', 200
+            
         if text.startswith('/admin_hist '):
-            if chat_id not in ADMIN_IDS: return 'ok', 200
+            if chat_id not in ADMIN_IDS: 
+                return 'ok', 200
             target_id = text.split()[1]
             hist = get_user_history(int(target_id), 5)
             if not hist:
@@ -214,10 +250,12 @@ def webhook():
                 msg += f"📅 {date[:10]} | ATS: {ats} | Общая: {ov}\n"
             send_message(chat_id, msg)
             return 'ok', 200
+            
         if text in ['📄 Загрузить резюме', '📄 Новое резюме']:
             resume_cache[f"{chat_id}_mode"] = None
             send_message(chat_id, "📎 Отправь PDF (до 10 МБ)")
             return 'ok', 200
+            
         if 'document' in data['message']:
             doc = data['message']['document']
             if doc.get('file_size', 0) > 10*1024*1024:
@@ -240,6 +278,7 @@ def webhook():
             resume_cache[f"{chat_id}_mode"] = None
             show_analysis_menu(chat_id)
             return 'ok', 200
+            
         if text == '🎯 Сравнить с вакансией':
             if not resume_cache.get(chat_id):
                 send_message(chat_id, "❌ Сначала загрузи резюме!")
@@ -247,6 +286,7 @@ def webhook():
             resume_cache[f"{chat_id}_mode"] = "job_desc"
             send_message(chat_id, "📋 Скопируй текст вакансии и отправь сюда.")
             return 'ok', 200
+            
         if resume_cache.get(f"{chat_id}_mode") == "job_desc":
             job_desc = text[:3000]
             rtext = resume_cache[chat_id]
@@ -268,6 +308,7 @@ def webhook():
             send_message(chat_id, out)
             resume_cache[f"{chat_id}_mode"] = None
             return 'ok', 200
+            
         if text == '📤 Скачать полный отчёт':
             rtext = resume_cache.get(chat_id)
             if not rtext:
@@ -320,8 +361,9 @@ def webhook():
             except Exception as e:
                 send_message(chat_id, f"❌ Ошибка: {e}")
             return 'ok', 200
-        
+
         PART_MAP = {'🤖 ATS-рубрика': 'ats_score', '💪 Сильные стороны': 'strengths', '⚠️ Слабые стороны': 'weaknesses', '🔑 Ключевые слова': 'keywords', '💡 Советы (Было→Стало)': 'recommendations', '🎯 Вердикт': 'final_verdict', '✨ Переписать резюме': 'rewrite'}
+        
         if text in PART_MAP:
             rtext = resume_cache.get(chat_id)
             if not rtext:
@@ -335,7 +377,8 @@ def webhook():
                     d = extract_json(res) if PART_MAP[text]=='ats_score' else None
                     ats = d.get('overall', 0) if d else 0
                     save_analysis(chat_id, rtext, ats, 0, PART_MAP[text])
-                except: pass
+                except: 
+                    pass
             if text == '🤖 ATS-рубрика':
                 d = extract_json(res)
                 if d and isinstance(d, dict):
@@ -343,15 +386,17 @@ def webhook():
                         f"📞 Контакты: {d.get('contacts','?')} | 📐 Структура: {d.get('structure','?')}\n"
                         f"🔑 Ключевые: {d.get('keywords','?')} | 📊 Достижения: {d.get('achievements','?')}\n"
                         f"📝 Формат: {d.get('format','?')} | 🎯 <b>ИТОГО: {d.get('overall','?')}/100</b> {get_level(d.get('overall',0))}")
-                else: out = f"🤖 ATS: {res}"
+                else: 
+                    out = f"🤖 ATS: {res}"
             else:
                 out = res
             send_message(chat_id, out)
             return 'ok', 200
-        
+
         if text == '🚀 Полный разбор':
             rtext = resume_cache.get(chat_id)
-            if not rtext: return 'ok', 200
+            if not rtext: 
+                return 'ok', 200
             send_message(chat_id, "🚀 <b>Полный разбор</b>\n⏳ Делаю по шагам...")
             ats_r = analyze_part(rtext, "ats_score", timeout=30)
             send_message(chat_id, "📊 Общая оценка...")
@@ -372,16 +417,21 @@ def webhook():
             send_message(chat_id, f"💪 <b>СИЛЬНЫЕ</b>:\n{str_r}\n⚠️ <b>СЛАБЫЕ</b>:\n{weak_r}")
             send_message(chat_id, f"💡 <b>СОВЕТЫ</b>:\n{rec_r}\n✅ Готово! Уровень: {get_level(ats_val)}")
             return 'ok', 200
+            
         return 'ok', 200
     except Exception as e:
         logger.error(f"Crash: {e}", exc_info=True)
-        if chat_id: send_message(chat_id, f"❌ Ошибка: {str(e)[:100]}")
+        if chat_id: 
+            send_message(chat_id, f"❌ Ошибка: {str(e)[:100]}")
         return 'error', 500
 
 @app.route('/', methods=['GET','HEAD'])
-def index(): return '✅ Online', 200
+def index(): 
+    return '✅ Online', 200
+    
 @app.route('/health')
-def health(): return {"status":"ok"}, 200
+def health(): 
+    return {"status":"ok"}, 200
 
 if __name__ != "__main__":
     init_db()
