@@ -4,7 +4,7 @@ from datetime import datetime
 from flask import Flask, request
 from PyPDF2 import PdfReader
 
-# 🔐 Настройки из переменных окружения
+# 🔐 Настройки
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY")
 ADMIN_IDS = set(map(int, os.environ.get("ADMIN_IDS", "0").split(",")))
@@ -14,8 +14,8 @@ if not TELEGRAM_TOKEN or not DEEPSEEK_API_KEY:
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger(__name__)
-app = Flask(__name__)
 
+app = Flask(__name__)
 DB_NAME = "resumeeasy.db"
 resume_cache = {}
 
@@ -106,7 +106,7 @@ def extract_text_from_pdf(file_bytes):
         return "\n".join(p.extract_text() or "" for p in pdf.pages).strip()
     except Exception as e:
         logger.error(f"PDF error: {e}")
-        return None
+    return None
 
 def get_level(score):
     try:
@@ -128,22 +128,35 @@ def get_score_emoji(score):
     except:
         return "⚪"
 
-# ===== AI АНАЛИЗ =====
+# ===== AI =====
 def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
-    
     prompts = {
         "ats_score": f"""Оцени резюме по 5 критериям (0-100 каждый):
 1. Контакты 2. Структура 3. Ключевые слова 4. Достижения с цифрами 5. Формат
 ВЕРНИ ТОЛЬКО JSON: {{"contacts": N, "structure": N, "keywords": N, "achievements": N, "format": N, "overall": N}}
 Резюме:
 {resume_text[:4000]}""",
-        "overall_score": f"Оцени резюме 0-100. ТОЛЬКО число.\nРезюме:\n{resume_text[:4000]}",
-        "strengths": f"5-7 сильных сторон. ✅ в начале. БЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
-        "weaknesses": f"5-7 слабых мест. ⚠️ в начале. БЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
-        "recommendations": f"5 советов в формате:\n❌ Проблема:\n✅ Решение:\n💡 Пример:\nБЕЗ *, #, HTML.\nРезюме:\n{resume_text[:4000]}",
-        "keywords": f"8-12 ключевых слов через запятую. ТОЛЬКО слова.\nРезюме:\n{resume_text[:4000]}",
+        "overall_score": f"Оцени резюме 0-100. ТОЛЬКО число.
+Резюме:
+{resume_text[:4000]}",
+        "strengths": f"5-7 сильных сторон. ✅ в начале. БЕЗ *, #, HTML.
+Резюме:
+{resume_text[:4000]}",
+        "weaknesses": f"5-7 слабых мест. ⚠️ в начале. БЕЗ *, #, HTML.
+Резюме:
+{resume_text[:4000]}",
+        "recommendations": f"5 советов в формате:
+❌ Проблема:
+✅ Решение:
+💡 Пример:
+БЕЗ *, #, HTML.
+Резюме:
+{resume_text[:4000]}",
+        "keywords": f"8-12 ключевых слов через запятую. ТОЛЬКО слова.
+Резюме:
+{resume_text[:4000]}",
         "final_verdict": f"""Дай чёткий финальный вердикт по резюме.
 ОТВЕТЬ СТРОГО ПО ФОРМАТУ:
 🎯 ГОТОВНОСТЬ К РАССЫЛКЕ: [Да/Нет/Частично]
@@ -156,15 +169,15 @@ def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
 Без *, #, HTML. Только обычный текст с эмодзи.
 Резюме:
 {resume_text[:4000]}""",
-        "rewrite": f"Перепиши резюме идеально. Только текст. Цифры, глаголы действия. Без *, #, HTML.\nОригинал:\n{resume_text[:4000]}"
+        "rewrite": f"Перепиши резюме идеально. Только текст. Цифры, глаголы действия. Без *, #, HTML.
+Оригинал:
+{resume_text[:4000]}"
     }
-    
     payload = {
         "model": "deepseek-chat",
         "messages": [{"role": "user", "content": custom_prompt or prompts[part_name]}],
         "temperature": 0, "max_tokens": 3000
     }
-    
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=timeout)
         r.raise_for_status()
@@ -198,26 +211,24 @@ def webhook():
     chat_id = None
     try:
         data = request.get_json()
-        
-        # ✅ КРИТИЧЕСКИ ВАЖНО: проверка данных
         if not data or 'message' not in data:
             return 'ok', 200
-        
+            
         chat_id = data['message']['chat']['id']
         user = data['message']['from']
         save_user(chat_id, user.get('username','anon'), user.get('first_name',''))
         text = data['message'].get('text', '')
-        
+
         # 🏠 МЕНЮ
         if text in ['/start', '⬅️ Назад в меню']:
             show_main_menu(chat_id)
             return 'ok', 200
-        
+
         # ❓ ПОМОЩЬ
         if text == '❓ Помощь':
             send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Выбери анализ")
             return 'ok', 200
-        
+
         # 📈 ИСТОРИЯ
         if text == '📈 Моя история':
             hist = get_user_history(chat_id, 5)
@@ -230,7 +241,7 @@ def webhook():
             msg += f"\n🏆 Уровень: {get_level(hist[0][2] if hist[0][2] else 0)}"
             send_message(chat_id, msg)
             return 'ok', 200
-        
+
         # 🔐 АДМИНКА
         if text == '🔐 Админ-панель':
             if chat_id not in ADMIN_IDS:
@@ -243,7 +254,7 @@ def webhook():
                 msg += f"• {u_fn or u_name} | Анализов: {total} | Ср. ATS: {avg_val:.0f}\n"
             send_message(chat_id, msg)
             return 'ok', 200
-        
+
         # 👁️ АДМИН: ИСТОРИЯ ЮЗЕРА
         if text.startswith('/admin_hist '):
             if chat_id not in ADMIN_IDS:
@@ -258,13 +269,13 @@ def webhook():
                 msg += f"📅 {date[:10]} | ATS: {ats} | Общая: {ov}\n"
             send_message(chat_id, msg)
             return 'ok', 200
-        
+
         # 📄 ЗАГРУЗКА
         if text in ['📄 Загрузить резюме', '📄 Новое резюме']:
             resume_cache[f"{chat_id}_mode"] = None
             send_message(chat_id, "📎 Отправь PDF (до 10 МБ)")
             return 'ok', 200
-        
+
         # 📥 PDF
         if 'document' in data['message']:
             doc = data['message']['document']
@@ -288,7 +299,7 @@ def webhook():
             resume_cache[f"{chat_id}_mode"] = None
             show_analysis_menu(chat_id)
             return 'ok', 200
-        
+
         # 🎯 СРАВНЕНИЕ С ВАКАНСИЕЙ
         if text == '🎯 Сравнить с вакансией':
             if not resume_cache.get(chat_id):
@@ -297,7 +308,7 @@ def webhook():
             resume_cache[f"{chat_id}_mode"] = "job_desc"
             send_message(chat_id, "📋 Скопируй текст вакансии и отправь сюда.")
             return 'ok', 200
-        
+
         if resume_cache.get(f"{chat_id}_mode") == "job_desc":
             job_desc = text[:3000]
             rtext = resume_cache[chat_id]
@@ -312,14 +323,14 @@ def webhook():
             d = extract_json(res)
             if d and isinstance(d, dict):
                 out = (f"🎯 <b>СОВПАДЕНИЕ</b>\n📊 {d.get('match_percent','?')}/100 {get_score_emoji(d.get('match_percent',0))}\n"
-                      f"❌ <b>Не хватает</b>:\n" + "\n".join(f"• {s}" for s in d.get('missing_skills', [])) + "\n"
-                      f"💡 <b>Что добавить</b>:\n" + "\n".join(f"• {r}" for r in d.get('recommendations', [])))
+                       f"❌ <b>Не хватает</b>:\n" + "\n".join(f"• {s}" for s in d.get('missing_skills', [])) + "\n"
+                       f"💡 <b>Что добавить</b>:\n" + "\n".join(f"• {r}" for r in d.get('recommendations', [])))
             else:
                 out = f"🎯 Анализ: {res}"
             send_message(chat_id, out)
             resume_cache[f"{chat_id}_mode"] = None
             return 'ok', 200
-        
+
         # 📤 СКАЧАТЬ ПОЛНЫЙ ОТЧЁТ
         if text == '📤 Скачать полный отчёт':
             rtext = resume_cache.get(chat_id)
@@ -369,20 +380,19 @@ def webhook():
             file.name = f"resume_report_{chat_id}.txt"
             try:
                 requests.post(url, files={"document": (file.name, file, "text/plain")},
-                    data={"chat_id": chat_id, "caption": "📄 Твой полный отчёт"}, timeout=30)
+                              data={"chat_id": chat_id, "caption": "📄 Твой полный отчёт"}, timeout=30)
                 send_message(chat_id, "✅ Полный отчёт отправлен!")
             except Exception as e:
                 send_message(chat_id, f"❌ Ошибка: {e}")
             return 'ok', 200
-        
-        # 🧠 АНАЛИЗ ПО КНОПКЕ
+
+        # 🧠 АНАЛИЗ
         PART_MAP = {
             '🤖 ATS-рубрика': 'ats_score', '💪 Сильные стороны': 'strengths',
             '⚠️ Слабые стороны': 'weaknesses', '🔑 Ключевые слова': 'keywords',
             '💡 Советы (Было→Стало)': 'recommendations', '🎯 Вердикт': 'final_verdict',
             '✨ Переписать резюме': 'rewrite'
         }
-        
         if text in PART_MAP:
             rtext = resume_cache.get(chat_id)
             if not rtext:
@@ -391,7 +401,6 @@ def webhook():
                 return 'ok', 200
             send_message(chat_id, "⏳ Анализирую...")
             res = analyze_part(rtext, PART_MAP[text])
-            
             if PART_MAP[text] in ['ats_score', 'final_verdict']:
                 try:
                     d = extract_json(res) if PART_MAP[text]=='ats_score' else None
@@ -399,21 +408,20 @@ def webhook():
                     save_analysis(chat_id, rtext, ats, 0, PART_MAP[text])
                 except:
                     pass
-            
             if text == '🤖 ATS-рубрика':
                 d = extract_json(res)
                 if d and isinstance(d, dict):
                     out = (f"🤖 <b>ATS-РУБРИКА</b>\n"
-                          f"📞 Контакты: {d.get('contacts','?')} | 📐 Структура: {d.get('structure','?')}\n"
-                          f"🔑 Ключевые: {d.get('keywords','?')} | 📊 Достижения: {d.get('achievements','?')}\n"
-                          f"📝 Формат: {d.get('format','?')} | 🎯 <b>ИТОГО: {d.get('overall','?')}/100</b> {get_level(d.get('overall',0))}")
+                           f"📞 Контакты: {d.get('contacts','?')} | 📐 Структура: {d.get('structure','?')}\n"
+                           f"🔑 Ключевые: {d.get('keywords','?')} | 📊 Достижения: {d.get('achievements','?')}\n"
+                           f"📝 Формат: {d.get('format','?')} | 🎯 <b>ИТОГО: {d.get('overall','?')}/100</b> {get_level(d.get('overall',0))}")
                 else:
                     out = f"🤖 ATS: {res}"
             else:
                 out = res
             send_message(chat_id, out)
             return 'ok', 200
-        
+
         # 🚀 ПОЛНЫЙ РАЗБОР
         if text == '🚀 Полный разбор':
             rtext = resume_cache.get(chat_id)
@@ -429,22 +437,19 @@ def webhook():
             weak_r = analyze_part(rtext, "weaknesses", timeout=30)
             send_message(chat_id, "💡 Советы...")
             rec_r = analyze_part(rtext, "recommendations", timeout=30)
-            
             d = extract_json(ats_r)
             ats_val = d.get('overall', 0) if d and isinstance(d, dict) else 0
             ov_val = int(ov_r) if ov_r.isdigit() else 0
             save_analysis(chat_id, rtext, ats_val, ov_val, "full_breakdown")
-            
             ats_block = (f"🤖 <b>ATS</b>\n📞 {d.get('contacts','?')} | 📐 {d.get('structure','?')} | 🔑 {d.get('keywords','?')}\n"
-                        f"📊 {d.get('achievements','?')} | 📝 {d.get('format','?')} | 🎯 <b>{d.get('overall','?')}/100</b> {get_level(d.get('overall',0))}\n") if d else f"🤖 ATS: {ats_r}\n"
-            
+                         f"📊 {d.get('achievements','?')} | 📝 {d.get('format','?')} | 🎯 <b>{d.get('overall','?')}/100</b> {get_level(d.get('overall',0))}\n") if d else f"🤖 ATS: {ats_r}\n"
             send_message(chat_id, f"📊 <b>ОЦЕНКА</b>\n{ats_block}📈 Общая: {ov_r}")
             send_message(chat_id, f"💪 <b>СИЛЬНЫЕ</b>:\n{str_r}\n⚠️ <b>СЛАБЫЕ</b>:\n{weak_r}")
             send_message(chat_id, f"💡 <b>СОВЕТЫ</b>:\n{rec_r}\n✅ Готово! Уровень: {get_level(ats_val)}")
             return 'ok', 200
-        
+
         return 'ok', 200
-        
+
     except Exception as e:
         logger.error(f"Crash: {e}", exc_info=True)
         if chat_id:
