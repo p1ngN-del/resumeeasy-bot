@@ -140,23 +140,23 @@ def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
 {resume_text[:4000]}""",
         "overall_score": f"Оцени резюме 0-100. ТОЛЬКО число.
 Резюме:
-{resume_text[:4000]}",
+{resume_text[:4000]}""",
         "strengths": f"5-7 сильных сторон. ✅ в начале. БЕЗ *, #, HTML.
 Резюме:
-{resume_text[:4000]}",
+{resume_text[:4000]}""",
         "weaknesses": f"5-7 слабых мест. ⚠️ в начале. БЕЗ *, #, HTML.
 Резюме:
-{resume_text[:4000]}",
+{resume_text[:4000]}""",
         "recommendations": f"5 советов в формате:
 ❌ Проблема:
 ✅ Решение:
 💡 Пример:
 БЕЗ *, #, HTML.
 Резюме:
-{resume_text[:4000]}",
+{resume_text[:4000]}""",
         "keywords": f"8-12 ключевых слов через запятую. ТОЛЬКО слова.
 Резюме:
-{resume_text[:4000]}",
+{resume_text[:4000]}""",
         "final_verdict": f"""Дай чёткий финальный вердикт по резюме.
 ОТВЕТЬ СТРОГО ПО ФОРМАТУ:
 🎯 ГОТОВНОСТЬ К РАССЫЛКЕ: [Да/Нет/Частично]
@@ -171,7 +171,7 @@ def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
 {resume_text[:4000]}""",
         "rewrite": f"Перепиши резюме идеально. Только текст. Цифры, глаголы действия. Без *, #, HTML.
 Оригинал:
-{resume_text[:4000]}"
+{resume_text[:4000]}"""
     }
     payload = {
         "model": "deepseek-chat",
