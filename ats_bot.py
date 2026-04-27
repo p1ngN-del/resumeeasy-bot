@@ -145,7 +145,9 @@ def analyze_part(resume_text, part_name, timeout=60, custom_prompt=None, job_des
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     
-    # Prompts with fixed JSON braces {{ }}
+    # Safe handling of job_desc to prevent NoneType errors
+    job_text = job_desc if job_desc else "Не указана"
+    
     prompts = {
         "full_report": f"""Ты — старший HR-рекрутер и эксперт по ATS с 10+ лет опыта в России.
 Проанализируй резюме и верни СТРОГО JSON объект со следующей структурой:
@@ -181,7 +183,7 @@ def analyze_part(resume_text, part_name, timeout=60, custom_prompt=None, job_des
 {resume_text[:2000]}
 
 Вакансия:
-{job_desc[:2000]}""",
+{job_text[:2000]}""",
 
         "cover_letter": f"""Ты — старший HR-рекрутер. Напиши короткое, ударное сопроводительное письмо для hh.ru.
 Требования:
@@ -196,7 +198,7 @@ def analyze_part(resume_text, part_name, timeout=60, custom_prompt=None, job_des
 {resume_text[:3000]}
 
 Вакансия:
-{job_desc[:3000] if job_desc else 'Не указана (напиши универсальное письмо)'}"""
+{job_text[:3000]}"""
     }
     
     payload = {
@@ -451,7 +453,6 @@ def webhook():
     chat_id = None
     try:
         data = request.get_json()
-        # FIXED: Added 'data' at the end of the condition
         if not data or 'message' not in data:
             return 'ok', 200
         
@@ -588,7 +589,9 @@ def webhook():
             send_message(chat_id, "📝 Генерирую сопроводительное письмо... ⏳")
             rtext = resume_cache[chat_id]
             
-            res = analyze_part(rtext, "cover_letter", timeout=40)
+            # If we have a job desc in cache, use it, otherwise generic
+            job_desc = resume_cache.get(f"{chat_id}_last_job")
+            res = analyze_part(rtext, "cover_letter", timeout=40, job_desc=job_desc)
             
             if res:
                 report_id = str(uuid.uuid4())
@@ -616,6 +619,7 @@ def webhook():
             
             send_message(chat_id, "🧠 HR-эксперт анализирует резюме... Это займет около минуты ⏳")
             
+            # FIXED: No job_desc passed here, so it defaults to None safely inside analyze_part
             res = analyze_part(rtext, "full_report", timeout=90)
             d = extract_json(res)
             
