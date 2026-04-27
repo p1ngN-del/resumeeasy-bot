@@ -1,8 +1,8 @@
 import os
 import uuid
-import time
 import io
 import csv
+import re
 import requests as req
 from datetime import datetime, timedelta
 from flask import request, render_template_string, Response
@@ -91,12 +91,17 @@ def register_routes(app):
         fixes = data.get('fixes', [])
         report = report_cache.get(report_id)
         if not report:
-            return {"redirect": None, "error": "Report expired"}, 404
+            return {"redirect": None, "error": "Report expired"}
+        
         user_id = report.get('user_id')
         resume_text = resume_cache.get(user_id) or get_last_analysis_text(user_id)
+        
+        if not resume_text:
+            return {"redirect": None, "error": "No resume text found"}
+        
         fixes_text = "\n".join([f"- {f['title']}: {f['desc']}" for f in fixes])
         
-        custom_prompt = f"""Ты — эксперт по улучшению резюме. Примени указанные правки и верни СТРОГО JSON с разбивкой по блокам:
+        custom_prompt = f"""Ты — эксперт по улучшению резюме. Примени указанные правки и верни СТРОГО JSON (без Markdown-разметки):
 
 {{{{
   "blocks": [
@@ -106,8 +111,12 @@ def register_routes(app):
     {{{{"title": "Навыки", "old_text": "исходный текст", "new_text": "улучшенный с ключевыми словами", "changes": "какие навыки добавлены"}}}},
     {{{{"title": "Образование", "old_text": "исходный текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}}}
   ],
-  "summary": "Краткий итог улучшений"
+  "summary": "Краткий итог улучшений",
+  "overall_score": 0,
+  "ats_score": 0
 }}}}
+
+НЕ используй Markdown-разметку (звездочки, решетки). Только чистый текст.
 
 Правки для применения:
 {fixes_text}
@@ -122,10 +131,9 @@ def register_routes(app):
         if not result:
             return {"redirect": None, "error": "AI generation failed"}
         
-        import re as re_module
         d = extract_json(result)
         if not d or 'blocks' not in d:
-            d = {"blocks": [], "summary": "Не удалось разобрать блоки"}
+            return {"redirect": None, "error": "Failed to parse AI response"}
         
         improved_id = str(uuid.uuid4())
         report_cache[improved_id] = {
@@ -133,50 +141,13 @@ def register_routes(app):
             'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
             'blocks': d.get('blocks', []),
             'summary': d.get('summary', ''),
+            'overall': d.get('overall_score', 0),
+            'ats': d.get('ats_score', 0),
             'original_report_id': report_id,
             'user_id': user_id
         }
         
         return {"redirect": f"/improved/{improved_id}"}
-
-    @app.route('/api/recheck/<improved_id>')
-    def recheck_resume(improved_id):
-        data = report_cache.get(improved_id)
-        if not data:
-            return "<h1 style='color:white;text-align:center;margin-top:50px'>Истёк</h1>", 404
-        
-        user_id = data.get('user_id')
-        blocks = data.get('blocks', [])
-        full_text = "\n\n".join([b['new_text'] for b in blocks if b['new_text']])
-        
-        if not full_text:
-            return "<h1 style='color:white;text-align:center;margin-top:50px'>Нет текста</h1>", 404
-        
-        resume_cache[user_id] = full_text
-        
-        result = analyze_part(full_text, "full_report", timeout=90)
-        d = extract_json(result)
-        
-        if not d:
-            return "<h1 style='color:white;text-align:center;margin-top:50px'>Ошибка анализа</h1>", 500
-        
-        save_analysis(user_id, full_text, d.get('ats_score', 0), d.get('overall_score', 0), "recheck")
-        
-        report_id = str(uuid.uuid4())
-        report_cache[report_id] = {
-            'type': 'full', 'user_id': user_id,
-            'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
-            'overall': d.get('overall_score', 0), 'ats': d.get('ats_score', 0),
-            'keywords': d.get('keywords', []), 'headlines': d.get('headlines', []),
-            'critical_fixes': d.get('critical_fixes', []),
-            'metrics_fixes': d.get('metrics_fixes', []),
-            'style_fixes': d.get('style_fixes', []),
-            'hh_rec': d.get('hh_recommendations', ''),
-            'match_vac': d.get('match_vacancies', []),
-            'verdict': d.get('verdict', '')
-        }
-        
-        return render_template_string(REPORT_HTML, **report_cache[report_id], report_id=report_id)
 
     @app.route('/admin')
     @app.route('/admin/')
