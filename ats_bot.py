@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import os, io, logging, requests, sqlite3, re, json, time, uuid
 from datetime import datetime
-from flask import Flask, request, jsonify, render_template_string
+from flask import Flask, request, render_template_string
 from PyPDF2 import PdfReader
 
 # --- CONFIGURATION ---
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 DB_NAME = "resumeeasy.db"
 
-# In-memory storage for reports and resumes
+# Caches
 report_cache = {} 
 resume_cache = {}
 
@@ -117,68 +117,56 @@ def get_level(score):
         return "🌱 Новичок"
     except: return "🌱 Новичок"
 
-def get_score_emoji(score):
-    try:
-        s = float(score)
-        if s >= 90: return "🟢"
-        if s >= 70: return "🟡"
-        if s >= 50: return "🟠"
-        return "🔴"
-    except: return "⚪"
-
 # --- AI ANALYSIS ---
-def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
+def analyze_part(resume_text, part_name, timeout=60, custom_prompt=None, job_desc=None):
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     
-    # Fixed multiline f-strings with triple quotes
+    # --- PROMPTS ---
     prompts = {
-        "ats_score": f"""Оцени резюме по 5 критериям (0-100 каждый):
-1. Контакты 2. Структура 3. Ключевые слова 4. Достижения с цифрами 5. Формат
-ВЕРНИ ТОЛЬКО JSON: {{"contacts": N, "structure": N, "keywords": N, "achievements": N, "format": N, "overall": N}}
+        "full_report": f"""Ты — старший HR-рекрутер и эксперт по ATS с 10+ лет опыта в России.
+Проанализируй резюме и верни СТРОГО JSON объект со следующей структурой:
+{{
+  "overall_score": 0-100,
+  "ats_score": 0-100,
+  "keywords": ["keyword1", "keyword2"],
+  "headlines": ["var1", "var2", "var3"],
+  "fixes": [{{"original": "text", "fixed": "text"}}],
+  "hh_recommendations": "text",
+  "match_vacancies": ["vac1", "vac2"],
+  "verdict": "text"
+}}
+
+Критерии оценки:
+1. Общая оценка: метрики, action-verbs, хронология, отсутствие воды.
+2. ATS: чистый текст, ключевые слова, стандартные заголовки.
+3. Fixes: минимум 6 улучшений формулировок с добавлением метрик.
+4. Headlines: 3 варианта для hh.ru.
+
 Резюме:
 {resume_text[:4000]}""",
-        "overall_score": f"""Оцени резюме 0-100. ТОЛЬКО число.
+        
+        "cover_letter": f"""Ты — старший HR-рекрутер. Напиши короткое, ударное сопроводительное письмо для hh.ru.
+Требования:
+- 5-10 предложений.
+- Первое предложение: имя, должность, ключевой результат.
+- 3-4 буллита с достижениями под вакансию.
+- Живой язык, без штампов.
+- В конце: контакты.
+- НЕ пиши "Резюме прилагаю".
+
 Резюме:
-{resume_text[:4000]}""",
-        "strengths": f"""5-7 сильных сторон. ✅ в начале. БЕЗ *, #, HTML.
-Резюме:
-{resume_text[:4000]}""",
-        "weaknesses": f"""5-7 слабых мест. ⚠️ в начале. БЕЗ *, #, HTML.
-Резюме:
-{resume_text[:4000]}""",
-        "recommendations": f"""5 советов в формате:
-❌ Проблема:
-✅ Решение:
-💡 Пример:
-БЕЗ *, #, HTML.
-Резюме:
-{resume_text[:4000]}""",
-        "keywords": f"""8-12 ключевых слов через запятую. ТОЛЬКО слова.
-Резюме:
-{resume_text[:4000]}""",
-        "final_verdict": f"""Дай чёткий финальный вердикт по резюме.
-ОТВЕТЬ СТРОГО ПО ФОРМАТУ:
-🎯 ГОТОВНОСТЬ К РАССЫЛКЕ: [Да/Нет/Частично]
-❌ КРИТИЧЕСКИЕ ОШИБКИ (максимум 3):
-1. [ошибка]
-2. [ошибка]
-3. [ошибка]
-📈 ПРОГНОЗ КОНВЕРСИИ: [число]%
-💡 ГЛАВНАЯ РЕКОМЕНДАЦИЯ: [одна конкретная фраза]
-Без *, #, HTML. Только обычный текст с эмодзи.
-Резюме:
-{resume_text[:4000]}""",
-        "rewrite": f"""Перепиши резюме идеально. Только текст. Цифры, глаголы действия. Без *, #, HTML.
-Оригинал:
-{resume_text[:4000]}"""
+{resume_text[:3000]}
+
+Вакансия:
+{job_desc[:3000] if job_desc else 'Не указана (напиши универсальное письмо)'}"""
     }
     
     payload = {
         "model": "deepseek-chat", 
         "messages": [{"role": "user", "content": custom_prompt or prompts[part_name]}], 
-        "temperature": 0, 
-        "max_tokens": 3000
+        "temperature": 0.2, 
+        "max_tokens": 4000
     }
     try:
         r = requests.post(url, headers=headers, json=payload, timeout=timeout)
@@ -186,132 +174,100 @@ def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
         return r.json()["choices"][0]["message"]["content"].strip()
     except Exception as e:
         logger.error(f"AI Error: {e}")
-        return "⏳ Попробуй через минуту"
+        return None
 
 # --- MENUS ---
-def show_main_menu(chat_id):
+def show_start_menu(chat_id):
     kb = {
         "keyboard": [
             ["📄 Загрузить резюме"], 
-            ["🎯 Сравнить с вакансией", "📝 Сопроводительное"], 
-            ["📈 Моя история", "❓ Помощь"], 
-            ["🔐 Админ-панель"]
+            ["❓ Помощь", "🔐 Админ-панель"]
         ],
         "resize_keyboard": True
     }
-    send_message(chat_id, "👋 <b>ResumeEasy Bot</b>\n📊 ATS-анализ, сравнение и генерация документов", reply_markup=kb)
+    send_message(chat_id, "👋 <b>ResumeEasy Bot</b>\nЗагрузи резюме, чтобы получить экспертный ATS-анализ.", reply_markup=kb)
 
-def show_analysis_menu(chat_id):
+def show_post_upload_menu(chat_id):
     kb = {
         "keyboard": [
-            ["🚀 Полный разбор", "🤖 ATS-рубрика"], 
-            ["💪 Сильные стороны", "⚠️ Слабые стороны"], 
-            ["🔑 Ключевые слова", "💡 Советы (Было→Стало)"], 
-            ["🎯 Вердикт", "✨ Переписать резюме"], 
-            ["🌐 Веб-отчет", "📄 Новое резюме"], 
+            ["📊 Получить отчет"], 
+            ["🎯 Сравнить с вакансией", "📝 Сопроводительное"], 
+            ["📈 Моя история", "📄 Новое резюме"], 
             ["⬅️ Назад в меню"]
         ],
         "resize_keyboard": True
     }
-    send_message(chat_id, "✅ <b>Резюме загружено!</b>\n🎯 Выбери анализ:", reply_markup=kb)
+    send_message(chat_id, "✅ <b>Резюме загружено!</b>\nНажми «Получить отчет» для полного анализа.", reply_markup=kb)
 
-# --- WEB REPORT TEMPLATE (PROFESSIONAL DARK STYLE) ---
+# --- WEB REPORT TEMPLATE (PROFESSIONAL DARK) ---
 REPORT_HTML = """
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Resume Analysis Report</title>
+    <title>Resume Expert Report</title>
     <style>
-        body {
-            background-color: #121212;
-            color: #e0e0e0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            line-height: 1.6;
-        }
-        .container {
-            max-width: 700px;
-            margin: 0 auto;
-            background: #1e1e1e;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-        }
-        h1 {
-            color: #ffffff;
-            border-bottom: 2px solid #333;
-            padding-bottom: 15px;
-            margin-top: 0;
-        }
-        .score-card {
-            display: flex;
-            justify-content: space-between;
-            background: #2c2c2c;
-            padding: 15px;
-            margin: 15px 0;
-            border-radius: 8px;
-            align-items: center;
-        }
-        .score-val {
-            font-size: 24px;
-            font-weight: bold;
-            color: #4caf50;
-        }
-        .section-title {
-            color: #bb86fc;
-            margin-top: 25px;
-            font-size: 18px;
-            font-weight: 600;
-        }
-        .list-item {
-            background: #252525;
-            padding: 10px;
-            margin-bottom: 8px;
-            border-radius: 6px;
-            border-left: 3px solid #333;
-        }
-        .footer {
-            margin-top: 40px;
-            text-align: center;
-            font-size: 12px;
-            color: #666;
-        }
+        body { background-color: #121212; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; background: #1e1e1e; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        h1 { color: #ffffff; border-bottom: 2px solid #333; padding-bottom: 15px; margin-top: 0; font-size: 24px; }
+        h2 { color: #bb86fc; margin-top: 30px; font-size: 18px; border-left: 4px solid #bb86fc; padding-left: 10px; }
+        .score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .score-card { background: #2c2c2c; padding: 15px; border-radius: 8px; text-align: center; }
+        .score-val { font-size: 32px; font-weight: bold; color: #03dac6; }
+        .score-label { font-size: 14px; color: #aaa; margin-top: 5px; }
+        .tag { display: inline-block; background: #333; padding: 4px 8px; border-radius: 4px; margin: 2px; font-size: 12px; color: #03dac6; }
+        .fix-item { background: #252525; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #cf6679; }
+        .fix-old { color: #cf6679; font-size: 13px; text-decoration: line-through; margin-bottom: 4px; }
+        .fix-new { color: #03dac6; font-size: 14px; }
+        .verbatim { white-space: pre-wrap; background: #252525; padding: 15px; border-radius: 6px; font-size: 14px; }
+        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📊 Resume Analysis</h1>
+        <h1>📊 Expert Resume Analysis</h1>
         <p style="color: #888">Generated on {{ date }}</p>
 
-        <div class="score-card">
-            <span>ATS Score</span>
-            <span class="score-val">{{ ats }}/100</span>
+        <div class="score-grid">
+            <div class="score-card">
+                <div class="score-val">{{ overall }}/100</div>
+                <div class="score-label">Общая оценкаHR</div>
+            </div>
+            <div class="score-card">
+                <div class="score-val" style="color: #bb86fc">{{ ats }}/100</div>
+                <div class="score-label">ATS Score (hh.ru)</div>
+            </div>
         </div>
-        <div class="score-card">
-            <span>Overall Match</span>
-            <span class="score-val" style="color: #03dac6">{{ overall }}/100</span>
+
+        <h2>🎯 Варианты заголовка для hh.ru</h2>
+        <div class="verbatim">
+        {% for h in headlines %}• {{ h }}<br>{% endfor %}
         </div>
 
-        <div class="section-title">Strengths</div>
-        {% for item in strengths %}
-        <div class="list-item">✅ {{ item }}</div>
+        <h2>🔑 Ключевые слова</h2>
+        <div>
+        {% for k in keywords %}<span class="tag">{{ k }}</span>{% endfor %}
+        </div>
+
+        <h2>🛠 Точечные правки (Было → Стало)</h2>
+        {% for fix in fixes %}
+        <div class="fix-item">
+            <div class="fix-old">{{ fix.original }}</div>
+            <div class="fix-new">{{ fix.fixed }}</div>
+        </div>
         {% endfor %}
 
-        <div class="section-title">Weaknesses</div>
-        {% for item in weaknesses %}
-        <div class="list-item" style="border-left-color: #cf6679">⚠️ {{ item }}</div>
-        {% endfor %}
+        <h2>💡 Рекомендации по hh.ru</h2>
+        <div class="verbatim">{{ hh_rec }}</div>
 
-        <div class="section-title">Recommendations</div>
-        {% for item in recommendations %}
-        <div class="list-item">💡 {{ item }}</div>
-        {% endfor %}
+        <h2>📈 Подходящие вакансии</h2>
+        <div class="verbatim">
+        {% for v in match_vac %}• {{ v }}<br>{% endfor %}
+        </div>
 
-        <div class="section-title">Keywords</div>
-        <p style="color: #aaa">{{ keywords }}</p>
+        <h2>🎤 Финальный вердикт</h2>
+        <div class="verbatim">{{ verdict }}</div>
 
         <div class="footer">
             Powered by ResumeEasy Bot
@@ -327,21 +283,9 @@ REPORT_HTML = """
 def view_report(report_id):
     data = report_cache.get(report_id)
     if not data:
-        return "<h1 style='color:white'>Report expired or not found</h1>", 404
+        return "<h1 style='color:white'>Report expired</h1>", 404
     
-    def parse_list(text):
-        if not text: return []
-        return [line.strip() for line in text.split('\n') if line.strip()]
-
-    return render_template_string(REPORT_HTML, 
-        date=data.get('date', ''),
-        ats=data.get('ats', 0),
-        overall=data.get('overall', 0),
-        strengths=parse_list(data.get('strengths', '')),
-        weaknesses=parse_list(data.get('weaknesses', '')),
-        recommendations=parse_list(data.get('recommendations', '')),
-        keywords=data.get('keywords', '')
-    )
+    return render_template_string(REPORT_HTML, **data)
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -359,22 +303,21 @@ def webhook():
         
         # --- COMMANDS ---
         if text in ['/start', '⬅️ Назад в меню']:
-            show_main_menu(chat_id)
+            show_start_menu(chat_id)
             return 'ok', 200
 
         if text == '❓ Помощь':
-            send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Выбери анализ или генерацию документов")
+            send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Нажми «Получить отчет» для глубокого анализа.")
             return 'ok', 200
 
         if text == '📈 Моя история':
             hist = get_user_history(chat_id, 5)
             if not hist:
-                send_message(chat_id, "📭 Истории пока нет. Загрузи резюме!")
+                send_message(chat_id, "📭 Истории пока нет.")
                 return 'ok', 200
             msg = "📈 <b>Твои анализы:</b>\n"
             for i, (date, ats, ov, typ) in enumerate(hist, 1):
-                msg += f"{i}. {date[:10]} | ATS: {ats or '?'} | Общая: {ov or '?'}\n"
-            msg += f"\n🏆 Уровень: {get_level(hist[0][2] if hist[0][2] else 0)}"
+                msg += f"{i}. {date[:10]} | ATS: {ats or '?'} | HR: {ov or '?'}\n"
             send_message(chat_id, msg)
             return 'ok', 200
 
@@ -383,7 +326,7 @@ def webhook():
                 send_message(chat_id, "🔐 Доступ запрещён")
                 return 'ok', 200
             users = get_all_users(10)
-            msg = "📊 <b>Панель управления</b>\n👥 Пользователи:\n"
+            msg = "📊 <b>Панель управления</b>\n"
             for u_id, u_name, u_fn, j_date, total, avg_ats in users:
                 avg_val = avg_ats if avg_ats else 0
                 msg += f"• {u_fn or u_name} | Анализов: {total} | Ср. ATS: {avg_val:.0f}\n"
@@ -397,9 +340,9 @@ def webhook():
             if not hist:
                 send_message(chat_id, f"🔍 У пользователя {target_id} нет анализов.")
                 return 'ok', 200
-            msg = f"📋 История пользователя {target_id}\n"
+            msg = f"📋 История {target_id}\n"
             for date, ats, ov, typ in hist:
-                msg += f"📅 {date[:10]} | ATS: {ats} | Общая: {ov}\n"
+                msg += f"📅 {date[:10]} | ATS: {ats} | HR: {ov}\n"
             send_message(chat_id, msg)
             return 'ok', 200
 
@@ -432,7 +375,7 @@ def webhook():
             
             resume_cache[chat_id] = rtext
             resume_cache[f"{chat_id}_mode"] = None
-            show_analysis_menu(chat_id)
+            show_post_upload_menu(chat_id)
             return 'ok', 200
 
         # --- JOB COMPARISON ---
@@ -447,22 +390,26 @@ def webhook():
         if resume_cache.get(f"{chat_id}_mode") == "job_desc":
             job_desc = text[:3000]
             rtext = resume_cache[chat_id]
-            send_message(chat_id, "🔍 Сравниваю... ⏳")
-            prompt = f"""Сравни резюме с вакансией. ВЕРНИ JSON:
-{{"match_percent": 0-100, "missing_skills": ["skill1"], "critical_gap": "gap", "recommendations": ["rec1"]}}
+            send_message(chat_id, "🔍 Сравниваю с вакансией... ⏳")
+            
+            # Using cover letter prompt logic but for comparison if needed, or just simple match
+            # For now, let's use the cover letter prompt to generate a tailored response or just a match score
+            # Let's make a specific comparison prompt
+            prompt = f"""Сравни резюме с вакансией. Верни JSON:
+{"match_percent": 0-100, "missing_skills": ["skill1"], "recommendations": ["rec1"]}
 Резюме:
 {rtext[:2000]}
 Вакансия:
 {job_desc}"""
-            res = analyze_part("", "custom", custom_prompt=prompt, timeout=40)
+            res = analyze_part(rtext, "custom", custom_prompt=prompt, timeout=40)
             d = extract_json(res)
             if d and isinstance(d, dict):
                 out = (f"🎯 <b>СОВПАДЕНИЕ</b>\n"
-                       f"📊 {d.get('match_percent','?')}/100 {get_score_emoji(d.get('match_percent',0))}\n"
+                       f"📊 {d.get('match_percent','?')}/100\n"
                        f"❌ <b>Не хватает</b>:\n" + "\n".join(f"• {s}" for s in d.get('missing_skills', [])) + "\n"
-                       f"💡 <b>Что добавить</b>:\n" + "\n".join(f"• {r}" for r in d.get('recommendations', [])))
+                       f"💡 <b>Совет</b>:\n" + "\n".join(f"• {r}" for r in d.get('recommendations', [])))
             else:
-                out = f"🎯 Анализ: {res}"
+                out = "❌ Не удалось сравнить. Попробуй еще раз."
             send_message(chat_id, out)
             resume_cache[f"{chat_id}_mode"] = None
             return 'ok', 200
@@ -473,51 +420,50 @@ def webhook():
                 send_message(chat_id, "❌ Сначала загрузи резюме!")
                 return 'ok', 200
             
+            # Check if we have a job description in cache from previous step? 
+            # For simplicity, let's ask for it or generate generic
             send_message(chat_id, "📝 Генерирую сопроводительное письмо... ⏳")
             rtext = resume_cache[chat_id]
-            prompt = f"""Напиши профессиональное сопроводительное письмо на основе этого резюме.
-Текст должен быть вежливым, структурированным, с акцентом на ключевые достижения и навыки.
-Отвечай строго в формате обычного текста. БЕЗ *, #, HTML, markdown.
-Резюме:
-{rtext[:3000]}"""
-            cover = analyze_part(rtext, "custom", custom_prompt=prompt, timeout=35)
-            send_message(chat_id, f"<b>Ваше сопроводительное письмо:</b>\n\n{cover}")
+            # If user previously sent job desc, we could use it, but let's keep it simple: generic or ask
+            # Let's generate a generic strong one based on resume
+            res = analyze_part(rtext, "cover_letter", timeout=40)
+            if res:
+                send_message(chat_id, f"<b>Ваше сопроводительное письмо:</b>\n\n{res}")
+            else:
+                send_message(chat_id, "❌ Ошибка генерации")
             return 'ok', 200
 
-        # --- WEB REPORT GENERATION ---
-        if text == '🌐 Веб-отчет':
+        # --- FULL REPORT GENERATION ---
+        if text == '📊 Получить отчет':
             rtext = resume_cache.get(chat_id)
             if not rtext:
                 send_message(chat_id, "❌ Сначала загрузи резюме")
                 return 'ok', 200
             
-            send_message(chat_id, "🎨 Создаю веб-отчет... ⏳")
+            send_message(chat_id, "🧠 HR-эксперт анализирует резюме... Это займет около минуты ⏳")
             
-            # Parallel-ish calls for speed
-            ats_r = analyze_part(rtext, "ats_score", timeout=30)
-            ov_r = analyze_part(rtext, "overall_score", timeout=20)
-            str_r = analyze_part(rtext, "strengths", timeout=30)
-            weak_r = analyze_part(rtext, "weaknesses", timeout=30)
-            key_r = analyze_part(rtext, "keywords", timeout=20)
-            rec_r = analyze_part(rtext, "recommendations", timeout=30)
+            res = analyze_part(rtext, "full_report", timeout=90)
+            d = extract_json(res)
             
-            d_ats = extract_json(ats_r)
-            ats_val = d_ats.get('overall', 0) if d_ats else 0
-            ov_val = int(ov_r) if ov_r.isdigit() else 0
-            
+            if not d:
+                send_message(chat_id, "❌ Не удалось сформировать отчет. Попробуйте позже.")
+                return 'ok', 200
+
             # Save to DB
-            save_analysis(chat_id, rtext, ats_val, ov_val, "web_report")
+            save_analysis(chat_id, rtext, d.get('ats_score', 0), d.get('overall_score', 0), "full_report")
             
             # Prepare Data for Web
             report_id = str(uuid.uuid4())
             report_data = {
                 'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
-                'ats': ats_val,
-                'overall': ov_val,
-                'strengths': str_r,
-                'weaknesses': weak_r,
-                'keywords': key_r,
-                'recommendations': rec_r
+                'overall': d.get('overall_score', 0),
+                'ats': d.get('ats_score', 0),
+                'keywords': d.get('keywords', []),
+                'headlines': d.get('headlines', []),
+                'fixes': d.get('fixes', []),
+                'hh_rec': d.get('hh_recommendations', ''),
+                'match_vac': d.get('match_vacancies', []),
+                'verdict': d.get('verdict', '')
             }
             report_cache[report_id] = report_data
             
@@ -525,78 +471,8 @@ def webhook():
             domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
             report_url = f"{domain}/report/{report_id}"
             
-            kb = {"inline_keyboard": [[{"text": "🌐 Открыть отчет", "url": report_url}]]}
-            send_message(chat_id, f"✅ <b>Отчет готов!</b>\nНажми кнопку ниже, чтобы увидеть красивый веб-интерфейс.", reply_markup=kb)
-            return 'ok', 200
-
-        # --- STANDARD ANALYSIS BUTTONS ---
-        PART_MAP = {
-            '🤖 ATS-рубрика': 'ats_score', 
-            '💪 Сильные стороны': 'strengths', 
-            '⚠️ Слабые стороны': 'weaknesses', 
-            '🔑 Ключевые слова': 'keywords', 
-            '💡 Советы (Было→Стало)': 'recommendations', 
-            '🎯 Вердикт': 'final_verdict', 
-            '✨ Переписать резюме': 'rewrite'
-        }
-        
-        if text in PART_MAP:
-            rtext = resume_cache.get(chat_id)
-            if not rtext:
-                show_main_menu(chat_id)
-                send_message(chat_id, "❌ Сессия сброшена")
-                return 'ok', 200
-            
-            send_message(chat_id, "⏳ Анализирую...")
-            res = analyze_part(rtext, PART_MAP[text])
-            
-            if PART_MAP[text] in ['ats_score', 'final_verdict']:
-                try:
-                    d = extract_json(res) if PART_MAP[text]=='ats_score' else None
-                    ats = d.get('overall', 0) if d else 0
-                    save_analysis(chat_id, rtext, ats, 0, PART_MAP[text])
-                except: pass
-                
-            if text == '🤖 ATS-рубрика':
-                d = extract_json(res)
-                if d and isinstance(d, dict):
-                    out = (f"🤖 <b>ATS-РУБРИКА</b>\n"
-                           f"📞 Контакты: {d.get('contacts','?')} | 📐 Структура: {d.get('structure','?')}\n"
-                           f"🔑 Ключевые: {d.get('keywords','?')} | 📊 Достижения: {d.get('achievements','?')}\n"
-                           f"📝 Формат: {d.get('format','?')} | 🎯 <b>ИТОГО: {d.get('overall','?')}/100</b> {get_level(d.get('overall',0))}")
-                else: out = f"🤖 ATS: {res}"
-            else:
-                out = res
-            send_message(chat_id, out)
-            return 'ok', 200
-
-        if text == '🚀 Полный разбор':
-            rtext = resume_cache.get(chat_id)
-            if not rtext: return 'ok', 200
-            send_message(chat_id, "🚀 <b>Полный разбор</b>\n⏳ Делаю по шагам...")
-            
-            ats_r = analyze_part(rtext, "ats_score", timeout=30)
-            send_message(chat_id, "📊 Общая оценка...")
-            ov_r = analyze_part(rtext, "overall_score", timeout=20)
-            send_message(chat_id, "💪 Сильные стороны...")
-            str_r = analyze_part(rtext, "strengths", timeout=30)
-            send_message(chat_id, "⚠️ Слабые места...")
-            weak_r = analyze_part(rtext, "weaknesses", timeout=30)
-            send_message(chat_id, "💡 Советы...")
-            rec_r = analyze_part(rtext, "recommendations", timeout=30)
-            
-            d = extract_json(ats_r)
-            ats_val = d.get('overall', 0) if d and isinstance(d, dict) else 0
-            ov_val = int(ov_r) if ov_r.isdigit() else 0
-            save_analysis(chat_id, rtext, ats_val, ov_val, "full_breakdown")
-            
-            ats_block = (f"🤖 <b>ATS</b>\n"
-                         f"📞 {d.get('contacts','?')} | 📐 {d.get('structure','?')} | 🔑 {d.get('keywords','?')}\n"
-                         f"📊 {d.get('achievements','?')} | 📝 {d.get('format','?')} | 🎯 <b>{d.get('overall','?')}/100</b> {get_level(d.get('overall',0))}\n") if d else f"🤖 ATS: {ats_r}\n"
-            
-            send_message(chat_id, f"📊 <b>ОЦЕНКА</b>\n{ats_block}📈 Общая: {ov_r}")
-            send_message(chat_id, f"💪 <b>СИЛЬНЫЕ</b>:\n{str_r}\n⚠️ <b>СЛАБЫЕ</b>:\n{weak_r}")
-            send_message(chat_id, f"💡 <b>СОВЕТЫ</b>:\n{rec_r}\n✅ Готово! Уровень: {get_level(ats_val)}")
+            kb = {"inline_keyboard": [[{"text": "🌐 Открыть полный отчет", "url": report_url}]]}
+            send_message(chat_id, f"✅ <b>Отчет готов!</b>\nНажми кнопку ниже, чтобы увидеть детальный разбор от HR-эксперта.", reply_markup=kb)
             return 'ok', 200
 
         return 'ok', 200
