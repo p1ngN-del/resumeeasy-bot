@@ -72,6 +72,57 @@ def register_routes(app):
         return "<h1>Unknown type</h1>", 404
 
     @app.route('/api/improve', methods=['POST'])
+    def view_improved(improved_id):
+        data = report_cache.get(improved_id)
+        if not data:
+            return "<h1 style='color:white;font-family:sans-serif;text-align:center;margin-top:50px'>Срок действия истёк 😢</h1>", 404
+        return render_template_string(IMPROVED_HTML, **data, report_id=improved_id)
+
+    @app.route('/api/recheck/<improved_id>')
+    def recheck_resume(improved_id):
+        data = report_cache.get(improved_id)
+        if not data:
+            return "<h1 style='color:white;text-align:center;margin-top:50px'>Истёк</h1>", 404
+        
+        user_id = data.get('user_id')
+        # Собираем полный текст из всех новых блоков
+        blocks = data.get('blocks', [])
+        full_text = "\n\n".join([b['new_text'] for b in blocks if b['new_text']])
+        
+        if not full_text:
+            return "<h1 style='color:white;text-align:center;margin-top:50px'>Нет текста</h1>", 404
+        
+        # Сохраняем в кэш для анализа
+        resume_cache[user_id] = full_text
+        
+        # Запускаем новый анализ
+        from ai import analyze_part
+        from telegram_helpers import extract_json
+        
+        result = analyze_part(full_text, "full_report", timeout=90)
+        d = extract_json(result)
+        
+        if not d:
+            return "<h1 style='color:white;text-align:center;margin-top:50px'>Ошибка анализа</h1>", 500
+        
+        from database import save_analysis
+        save_analysis(user_id, full_text, d.get('ats_score', 0), d.get('overall_score', 0), "recheck")
+        
+        report_id = str(uuid.uuid4())
+        report_cache[report_id] = {
+            'type': 'full', 'user_id': user_id,
+            'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
+            'overall': d.get('overall_score', 0), 'ats': d.get('ats_score', 0),
+            'keywords': d.get('keywords', []), 'headlines': d.get('headlines', []),
+            'critical_fixes': d.get('critical_fixes', []),
+            'metrics_fixes': d.get('metrics_fixes', []),
+            'style_fixes': d.get('style_fixes', []),
+            'hh_rec': d.get('hh_recommendations', ''),
+            'match_vac': d.get('match_vacancies', []),
+            'verdict': d.get('verdict', '')
+        }
+        
+        return render_template_string(REPORT_HTML, **report_cache[report_id], report_id=report_id)
     def api_improve():
         data = request.get_json()
         report_id = data.get('report_id')
