@@ -90,6 +90,27 @@ def send_message(chat_id, text, reply_markup=None, parse_mode="HTML"):
         except Exception as e:
             logger.error(f"Send error: {e}")
 
+def send_welcome_video(chat_id, caption):
+    """Отправляет приветственное видео с подписью"""
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendVideo"
+    video_path = "welcome.mp4"
+    
+    # Проверяем, существует ли файл локально (на Railway он будет)
+    if not os.path.exists(video_path):
+        logger.warning("Welcome video not found, sending text only.")
+        send_message(chat_id, caption)
+        return
+
+    try:
+        with open(video_path, "rb") as video:
+            files = {"video": video}
+            data = {"chat_id": chat_id, "caption": caption, "parse_mode": "HTML"}
+            requests.post(url, files=files, data=data, timeout=60)
+    except Exception as e:
+        logger.error(f"Video send error: {e}")
+        # Если видео не загрузилось, отправим только текст
+        send_message(chat_id, caption)
+
 def extract_json(text):
     text = re.sub(r'```json\s*|\s*```', '', text).strip()
     try: return json.loads(text)
@@ -185,7 +206,24 @@ def show_start_menu(chat_id):
         ],
         "resize_keyboard": True
     }
-    send_message(chat_id, "👋 <b>ResumeEasy Bot</b>\nЗагрузи резюме, чтобы получить экспертный ATS-анализ.", reply_markup=kb)
+    # Текст приветствия
+    welcome_text = (
+        "🤖 <b>Добро пожаловать в ResumeEasy!</b>\n\n"
+        "Рынок труда в 2026 году изменился:\n"
+        "🔹 80% компаний используют ATS-фильтры\n"
+        "🔹 На 1 вакансию теперь откликаются 300+ кандидатов\n"
+        "🔹 HR ищут не «опыт», а конкретные цифры и метрики\n\n"
+        "Этот бот — ваш персональный ATS-эксперт. Он:\n"
+        "✅ Проверит резюме на совместимость с системами отбора\n"
+        "✅ Покажет, где вы теряете шансы на интервью\n"
+        "✅ Даст готовые формулировки с ключевыми словами\n\n"
+        "📤 <b>Загрузите PDF-резюме прямо сейчас</b> — и получите разбор за 30 секунд."
+    )
+    
+    send_welcome_video(chat_id, welcome_text)
+    # Отправляем меню отдельным сообщением, чтобы оно не перекрывало видео
+    time.sleep(1) 
+    send_message(chat_id, "👇 <b>Выберите действие:</b>", reply_markup=kb)
 
 def show_post_upload_menu(chat_id):
     kb = {
@@ -232,7 +270,7 @@ REPORT_HTML = """
         <div class="score-grid">
             <div class="score-card">
                 <div class="score-val">{{ overall }}/100</div>
-                <div class="score-label">Общая оценкаHR</div>
+                <div class="score-label">Общая оценка HR</div>
             </div>
             <div class="score-card">
                 <div class="score-val" style="color: #bb86fc">{{ ats }}/100</div>
@@ -282,7 +320,7 @@ REPORT_HTML = """
 @app.route('/report/<report_id>')
 def view_report(report_id):
     data = report_cache.get(report_id)
-    if not data:
+    if not 
         return "<h1 style='color:white'>Report expired</h1>", 404
     
     return render_template_string(REPORT_HTML, **data)
@@ -292,7 +330,7 @@ def webhook():
     chat_id = None
     try:
         data = request.get_json()
-        if not data or 'message' not in data:
+        if not data or 'message' not in 
             return 'ok', 200
         
         chat_id = data['message']['chat']['id']
@@ -392,11 +430,9 @@ def webhook():
             rtext = resume_cache[chat_id]
             send_message(chat_id, "🔍 Сравниваю с вакансией... ⏳")
             
-            # Using cover letter prompt logic but for comparison if needed, or just simple match
-            # For now, let's use the cover letter prompt to generate a tailored response or just a match score
-            # Let's make a specific comparison prompt
+            # FIXED: Double curly braces for JSON inside f-string
             prompt = f"""Сравни резюме с вакансией. Верни JSON:
-{"match_percent": 0-100, "missing_skills": ["skill1"], "recommendations": ["rec1"]}
+{{"match_percent": 0-100, "missing_skills": ["skill1"], "recommendations": ["rec1"]}}
 Резюме:
 {rtext[:2000]}
 Вакансия:
@@ -420,12 +456,8 @@ def webhook():
                 send_message(chat_id, "❌ Сначала загрузи резюме!")
                 return 'ok', 200
             
-            # Check if we have a job description in cache from previous step? 
-            # For simplicity, let's ask for it or generate generic
             send_message(chat_id, "📝 Генерирую сопроводительное письмо... ⏳")
             rtext = resume_cache[chat_id]
-            # If user previously sent job desc, we could use it, but let's keep it simple: generic or ask
-            # Let's generate a generic strong one based on resume
             res = analyze_part(rtext, "cover_letter", timeout=40)
             if res:
                 send_message(chat_id, f"<b>Ваше сопроводительное письмо:</b>\n\n{res}")
