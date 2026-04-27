@@ -3,12 +3,13 @@ import uuid
 import time
 import io
 import csv
+import requests as req
 from datetime import datetime, timedelta
-from flask import Flask, request, render_template_string, Response
+from flask import request, render_template_string, Response
 from PyPDF2 import PdfReader
 
 from config import TELEGRAM_TOKEN, ADMIN_IDS, logger
-from database import save_user, save_analysis, get_user_history, get_last_analysis_text, get_all_users
+from database import save_user, save_analysis, get_user_history, get_last_analysis_text, get_all_users, get_db
 from ai import analyze_part
 from telegram_helpers import send_message, send_welcome_video, clean_markdown, extract_json
 from templates import REPORT_HTML, MATCH_HTML, COVER_HTML, IMPROVED_HTML, ADMIN_HTML, ADMIN_USERS_HTML
@@ -71,71 +72,25 @@ def register_routes(app):
             return render_template_string(COVER_HTML, **data)
         return "<h1>Unknown type</h1>", 404
 
-    @app.route('/api/improve', methods=['POST'])
+    @app.route('/improved/<improved_id>')
     def view_improved(improved_id):
         data = report_cache.get(improved_id)
         if not data:
             return "<h1 style='color:white;font-family:sans-serif;text-align:center;margin-top:50px'>Срок действия истёк 😢</h1>", 404
         return render_template_string(IMPROVED_HTML, **data, report_id=improved_id)
 
-    @app.route('/api/recheck/<improved_id>')
-    def recheck_resume(improved_id):
-        data = report_cache.get(improved_id)
-        if not data:
-            return "<h1 style='color:white;text-align:center;margin-top:50px'>Истёк</h1>", 404
-        
-        user_id = data.get('user_id')
-        # Собираем полный текст из всех новых блоков
-        blocks = data.get('blocks', [])
-        full_text = "\n\n".join([b['new_text'] for b in blocks if b['new_text']])
-        
-        if not full_text:
-            return "<h1 style='color:white;text-align:center;margin-top:50px'>Нет текста</h1>", 404
-        
-        # Сохраняем в кэш для анализа
-        resume_cache[user_id] = full_text
-        
-        # Запускаем новый анализ
-        from ai import analyze_part
-        from telegram_helpers import extract_json
-        
-        result = analyze_part(full_text, "full_report", timeout=90)
-        d = extract_json(result)
-        
-        if not d:
-            return "<h1 style='color:white;text-align:center;margin-top:50px'>Ошибка анализа</h1>", 500
-        
-        from database import save_analysis
-        save_analysis(user_id, full_text, d.get('ats_score', 0), d.get('overall_score', 0), "recheck")
-        
-        report_id = str(uuid.uuid4())
-        report_cache[report_id] = {
-            'type': 'full', 'user_id': user_id,
-            'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
-            'overall': d.get('overall_score', 0), 'ats': d.get('ats_score', 0),
-            'keywords': d.get('keywords', []), 'headlines': d.get('headlines', []),
-            'critical_fixes': d.get('critical_fixes', []),
-            'metrics_fixes': d.get('metrics_fixes', []),
-            'style_fixes': d.get('style_fixes', []),
-            'hh_rec': d.get('hh_recommendations', ''),
-            'match_vac': d.get('match_vacancies', []),
-            'verdict': d.get('verdict', '')
-        }
-        
-        return render_template_string(REPORT_HTML, **report_cache[report_id], report_id=report_id)
+    @app.route('/api/improve', methods=['POST'])
     def api_improve():
         data = request.get_json()
         report_id = data.get('report_id')
         fixes = data.get('fixes', [])
         report = report_cache.get(report_id)
         if not report:
-            return {"error": "Report expired"}, 404
+            return {"redirect": None, "error": "Report expired"}, 404
         user_id = report.get('user_id')
         resume_text = resume_cache.get(user_id) or get_last_analysis_text(user_id)
-        
         fixes_text = "\n".join([f"- {f['title']}: {f['desc']}" for f in fixes])
         
-        # Используем новый промпт improve_blocks
         custom_prompt = f"""Ты — эксперт по улучшению резюме. Примени указанные правки и верни СТРОГО JSON с разбивкой по блокам:
 
 {{{{
@@ -155,16 +110,16 @@ def register_routes(app):
 Исходное резюме:
 {resume_text}
 
-Верни ПОЛНЫЙ JSON со ВСЕМИ блоками."""
+Верни ПОЛНЫЙ JSON со ВСЕМИ блоками. Если блока нет в резюме — old_text пустой."""
         
         result = analyze_part("", "", custom_prompt=custom_prompt, timeout=90)
         
         if not result:
             return {"redirect": None, "error": "AI generation failed"}
         
+        import re as re_module
         d = extract_json(result)
         if not d or 'blocks' not in d:
-            # Fallback: пробуем другой формат
             d = {"blocks": [], "summary": "Не удалось разобрать блоки"}
         
         improved_id = str(uuid.uuid4())
@@ -178,10 +133,51 @@ def register_routes(app):
         }
         
         return {"redirect": f"/improved/{improved_id}"}
+
+    @app.route('/api/recheck/<improved_id>')
+    def recheck_resume(improved_id):
+        data = report_cache.get(improved_id)
+        if not data:
+            return "<h1 style='color:white;text-align:center;margin-top:50px'>Истёк</h1>", 404
+        
+        user_id = data.get('user_id')
+        blocks = data.get('blocks', [])
+        full_text = "\n\n".join([b['new_text'] for b in blocks if b['new_text']])
+        
+        if not full_text:
+            return "<h1 style='color:white;text-align:center;margin-top:50px'>Нет текста</h1>", 404
+        
+        resume_cache[user_id] = full_text
+        
+        result = analyze_part(full_text, "full_report", timeout=90)
+        d = extract_json(result)
+        
+        if not d:
+            return "<h1 style='color:white;text-align:center;margin-top:50px'>Ошибка анализа</h1>", 500
+        
+        save_analysis(user_id, full_text, d.get('ats_score', 0), d.get('overall_score', 0), "recheck")
+        
+        report_id = str(uuid.uuid4())
+        report_cache[report_id] = {
+            'type': 'full', 'user_id': user_id,
+            'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
+            'overall': d.get('overall_score', 0), 'ats': d.get('ats_score', 0),
+            'keywords': d.get('keywords', []), 'headlines': d.get('headlines', []),
+            'critical_fixes': d.get('critical_fixes', []),
+            'metrics_fixes': d.get('metrics_fixes', []),
+            'style_fixes': d.get('style_fixes', []),
+            'hh_rec': d.get('hh_recommendations', ''),
+            'match_vac': d.get('match_vacancies', []),
+            'verdict': d.get('verdict', '')
+        }
+        
+        return render_template_string(REPORT_HTML, **report_cache[report_id], report_id=report_id)
+
+    @app.route('/admin')
+    @app.route('/admin/')
     def admin_dashboard():
         conn = None
         try:
-            from database import get_db
             import psycopg2.extras
             conn = get_db()
             c = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -217,7 +213,6 @@ def register_routes(app):
     def admin_users():
         conn = None
         try:
-            from database import get_db
             import psycopg2.extras
             conn = get_db()
             c = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -237,7 +232,6 @@ def register_routes(app):
     def admin_export():
         conn = None
         try:
-            from database import get_db
             conn = get_db()
             c = conn.cursor()
             c.execute('''SELECT u.user_id, u.username, u.first_name, u.join_date, u.last_activity,
@@ -302,7 +296,6 @@ def register_routes(app):
                 if doc.get('mime_type') != 'application/pdf': send_message(chat_id, "❌ Нужен PDF"); return 'ok', 200
                 send_message(chat_id, "🔍 Извлекаю текст...")
                 fid = doc['file_id']
-                import requests as req
                 finfo = req.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile?file_id={fid}", timeout=30).json()
                 if not finfo.get('ok'): send_message(chat_id, "❌ Ошибка файла"); return 'ok', 200
                 rtext = extract_text_from_pdf(req.get(f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{finfo['result']['file_path']}", timeout=60).content)
