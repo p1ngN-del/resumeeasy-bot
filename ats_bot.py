@@ -111,11 +111,11 @@ def send_welcome_video(chat_id, caption):
 
 def clean_markdown(text):
     """Убирает Markdown-разметку из текста"""
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # **жирный**
-    text = re.sub(r'\*(.*?)\*', r'\1', text)        # *курсив*
-    text = re.sub(r'___(.*?)___', r'\1', text)      # ___жирный курсив___
-    text = re.sub(r'__(.*?)__', r'\1', text)        # __жирный__
-    text = re.sub(r'_(.*?)_', r'\1', text)          # _курсив_
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    text = re.sub(r'\*(.*?)\*', r'\1', text)
+    text = re.sub(r'___(.*?)___', r'\1', text)
+    text = re.sub(r'__(.*?)__', r'\1', text)
+    text = re.sub(r'_(.*?)_', r'\1', text)
     return text
 
 def extract_json(text):
@@ -154,28 +154,40 @@ def analyze_part(resume_text, part_name, timeout=60, custom_prompt=None, job_des
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     
-    # Safe handling of job_desc to prevent NoneType errors
     job_text = job_desc if job_desc else "Не указана"
     
     prompts = {
         "full_report": f"""Ты — старший HR-рекрутер и эксперт по ATS с 10+ лет опыта в России.
-Проанализируй резюме и верни СТРОГО JSON объект со следующей структурой:
+Проанализируй резюме и верни СТРОГО JSON со следующей структурой:
+
 {{
   "overall_score": 0-100,
   "ats_score": 0-100,
-  "keywords": ["keyword1", "keyword2"],
-  "headlines": ["var1", "var2", "var3"],
-  "fixes": [{{"original": "text", "fixed": "text"}}],
-  "hh_recommendations": "text",
-  "match_vacancies": ["vac1", "vac2"],
-  "verdict": "text"
+  "keywords": ["найденные", "ключевые", "слова"],
+  "headlines": ["Заголовок 1", "Заголовок 2", "Заголовок 3"],
+  "critical_fixes": [
+    {{"title": "Нестандартный заголовок раздела", "description": "Замените 'Моя история' на 'Опыт работы'. Это критично для ATS-парсеров.", "done": false}},
+    {{"title": "Отсутствует раздел 'Навыки'", "description": "Выделите 5-7 ключевых навыков в отдельный блок сразу после заголовка.", "done": false}}
+  ],
+  "metrics_fixes": [
+    {{"title": "Добавьте цифры в опыте работы", "description": "Укажите: 'Увеличил продажи на 35% за полгода, управлял бюджетом 5 млн руб.'", "done": false}},
+    {{"title": "Конкретизируйте достижения", "description": "Вместо 'работал с клиентами' напишите 'вел 20+ ключевых клиентов из сегмента Enterprise'.", "done": false}}
+  ],
+  "style_fixes": [
+    {{"title": "Замените пассивный залог", "description": "Вместо 'были внедрены процессы' напишите 'Внедрил процессы, сократившие время согласования на 40%'.", "done": false}},
+    {{"title": "Уберите воду", "description": "Фразы 'ответственный, коммуникабельный' замените конкретными примерами из опыта.", "done": false}}
+  ],
+  "hh_recommendations": "Советы по заполнению hh.ru: 1. Загрузите резюме в формате .docx 2. Заполните все разделы на 100% 3. Укажите зарплатные ожидания",
+  "match_vacancies": ["Подходящая вакансия 1", "Подходящая вакансия 2"],
+  "verdict": "Общий вердикт: резюме набрало 65/100. Основные проблемы — отсутствие метрик и нестандартные заголовки."
 }}
 
-Критерии оценки:
-1. Общая оценка: метрики, action-verbs, хронология, отсутствие воды.
-2. ATS: чистый текст, ключевые слова, стандартные заголовки.
-3. Fixes: минимум 6 улучшений формулировок с добавлением метрик.
-4. Headlines: 3 варианта для hh.ru.
+Критерии:
+- critical_fixes: проблемы, мешающие ATS найти резюме (заголовки, формат, отсутствие ключевых разделов). Минимум 2.
+- metrics_fixes: где добавить цифры и измеримые результаты. Минимум 2.
+- style_fixes: язык, глаголы, вода. Минимум 2.
+- ВСЕГО не менее 6 рекомендаций в сумме.
+- description должен быть КОНКРЕТНЫМ — не "добавьте метрики", а покажите на примере из резюме, что именно заменить.
 
 Резюме:
 {resume_text[:4000]}""",
@@ -235,10 +247,8 @@ def show_start_menu(chat_id):
         "resize_keyboard": True
     }
     
-    # МГНОВЕННО показываем меню
     send_message(chat_id, "👇 <b>Выберите действие:</b>", reply_markup=kb)
     
-    # Отправляем видео с приветствием в фоне (не блокирует меню)
     welcome_text = (
         "🤖 <b>Добро пожаловать в ResumeEasy!</b>\n\n"
         "Рынок труда в 2026 году изменился:\n"
@@ -267,7 +277,7 @@ def show_post_upload_menu(chat_id):
 
 # --- WEB REPORT TEMPLATES ---
 
-# 1. Full Resume Report Template
+# 1. Full Resume Report Template с чек-листом
 REPORT_HTML = """
 <!DOCTYPE html>
 <html lang="ru">
@@ -285,11 +295,24 @@ REPORT_HTML = """
         .score-val { font-size: 32px; font-weight: bold; color: #03dac6; }
         .score-label { font-size: 14px; color: #aaa; margin-top: 5px; }
         .tag { display: inline-block; background: #333; padding: 4px 8px; border-radius: 4px; margin: 2px; font-size: 12px; color: #03dac6; }
-        .fix-item { background: #252525; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #cf6679; }
-        .fix-old { color: #cf6679; font-size: 13px; text-decoration: line-through; margin-bottom: 4px; }
-        .fix-new { color: #03dac6; font-size: 14px; }
+        .progress-bar { background: #333; height: 20px; border-radius: 10px; margin: 15px 0; overflow: hidden; }
+        .progress-fill { background: linear-gradient(90deg, #cf6679, #03dac6); height: 100%; transition: width 0.3s; }
+        .checklist-item { display: flex; align-items: flex-start; padding: 12px; margin-bottom: 10px; background: #252525; border-radius: 8px; border-left: 4px solid #555; }
+        .checklist-item.critical { border-left-color: #cf6679; }
+        .checklist-item.metrics { border-left-color: #ffb74d; }
+        .checklist-item.style { border-left-color: #03dac6; }
+        .checklist-checkbox { margin-right: 12px; margin-top: 3px; width: 20px; height: 20px; cursor: pointer; }
+        .checklist-content { flex: 1; }
+        .checklist-title { font-weight: bold; margin-bottom: 4px; }
+        .checklist-desc { font-size: 13px; color: #aaa; }
+        .verdict-box { background: #1a1a2e; border: 1px solid #bb86fc; padding: 15px; border-radius: 8px; margin-top: 20px; }
         .verbatim { white-space: pre-wrap; background: #252525; padding: 15px; border-radius: 6px; font-size: 14px; }
         .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+        .category-header { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
+        .category-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .badge-critical { background: #cf6679; color: #000; }
+        .badge-metrics { background: #ffb74d; color: #000; }
+        .badge-style { background: #03dac6; color: #000; }
     </style>
 </head>
 <body>
@@ -308,23 +331,63 @@ REPORT_HTML = """
             </div>
         </div>
 
+        <h2>✅ Чек-лист улучшений</h2>
+        <div class="progress-bar">
+            <div class="progress-fill" style="width: 0%" id="progressBar"></div>
+        </div>
+        <p style="text-align:center; color:#aaa; font-size:14px">Выполнено: <span id="progressText">0/0</span></p>
+
+        <div class="category-header">
+            <span class="category-badge badge-critical">🔴 КРИТИЧНО</span>
+            <span style="color:#aaa; font-size:13px">Мешают ATS найти ваше резюме</span>
+        </div>
+        {% for fix in critical_fixes %}
+        <div class="checklist-item critical">
+            <input type="checkbox" class="checklist-checkbox" onchange="updateProgress()">
+            <div class="checklist-content">
+                <div class="checklist-title">{{ fix.title }}</div>
+                <div class="checklist-desc">{{ fix.description }}</div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="category-header">
+            <span class="category-badge badge-metrics">🟡 МЕТРИКИ</span>
+            <span style="color:#aaa; font-size:13px">Добавьте цифры и результаты</span>
+        </div>
+        {% for fix in metrics_fixes %}
+        <div class="checklist-item metrics">
+            <input type="checkbox" class="checklist-checkbox" onchange="updateProgress()">
+            <div class="checklist-content">
+                <div class="checklist-title">{{ fix.title }}</div>
+                <div class="checklist-desc">{{ fix.description }}</div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="category-header">
+            <span class="category-badge badge-style">🟢 СТИЛЬ</span>
+            <span style="color:#aaa; font-size:13px">Язык, глаголы, подача</span>
+        </div>
+        {% for fix in style_fixes %}
+        <div class="checklist-item style">
+            <input type="checkbox" class="checklist-checkbox" onchange="updateProgress()">
+            <div class="checklist-content">
+                <div class="checklist-title">{{ fix.title }}</div>
+                <div class="checklist-desc">{{ fix.description }}</div>
+            </div>
+        </div>
+        {% endfor %}
+
         <h2>🎯 Варианты заголовка для hh.ru</h2>
         <div class="verbatim">
         {% for h in headlines %}• {{ h }}<br>{% endfor %}
         </div>
 
-        <h2>🔑 Ключевые слова</h2>
+        <h2>🔑 Ключевые слова для ATS</h2>
         <div>
         {% for k in keywords %}<span class="tag">{{ k }}</span>{% endfor %}
         </div>
-
-        <h2>🛠 Точечные правки (Было → Стало)</h2>
-        {% for fix in fixes %}
-        <div class="fix-item">
-            <div class="fix-old">{{ fix.original }}</div>
-            <div class="fix-new">{{ fix.fixed }}</div>
-        </div>
-        {% endfor %}
 
         <h2>💡 Рекомендации по hh.ru</h2>
         <div class="verbatim">{{ hh_rec }}</div>
@@ -334,13 +397,24 @@ REPORT_HTML = """
         {% for v in match_vac %}• {{ v }}<br>{% endfor %}
         </div>
 
-        <h2>🎤 Финальный вердикт</h2>
-        <div class="verbatim">{{ verdict }}</div>
+        <div class="verdict-box">
+            <h2>🎤 Финальный вердикт</h2>
+            <div class="verbatim">{{ verdict }}</div>
+        </div>
 
         <div class="footer">
             Powered by ResumeEasy Bot
         </div>
     </div>
+    <script>
+        function updateProgress() {
+            var total = document.querySelectorAll('.checklist-checkbox').length;
+            var checked = document.querySelectorAll('.checklist-checkbox:checked').length;
+            var percent = total > 0 ? Math.round((checked / total) * 100) : 0;
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressText').innerText = checked + '/' + total + ' (' + percent + '%)';
+        }
+    </script>
 </body>
 </html>
 """
@@ -565,7 +639,6 @@ def webhook():
             job_desc = text[:3000]
             rtext = resume_cache[chat_id]
             
-            # СОХРАНЯЕМ ВАКАНСИЮ ДЛЯ СОПРОВОДИТЕЛЬНОГО ПИСЬМА
             resume_cache[f"{chat_id}_last_job"] = job_desc
             
             send_message(chat_id, "🔍 Сравниваю с вакансией... ⏳")
@@ -602,11 +675,9 @@ def webhook():
                 send_message(chat_id, "❌ Сначала загрузи резюме!")
                 return 'ok', 200
             
-            # Проверяем, есть ли сохранённая вакансия
             saved_job = resume_cache.get(f"{chat_id}_last_job")
             
             if saved_job:
-                # Есть сохранённая вакансия — предлагаем выбор
                 kb = {
                     "keyboard": [
                         ["📋 Использовать прошлую вакансию"],
@@ -623,7 +694,6 @@ def webhook():
                     reply_markup=kb
                 )
             else:
-                # Нет сохранённой вакансии — предлагаем варианты
                 kb = {
                     "keyboard": [
                         ["🆕 Указать вакансию"],
@@ -639,7 +709,6 @@ def webhook():
                 )
             return 'ok', 200
 
-        # Обработка выбора для сопроводительного письма
         if text == '📋 Использовать прошлую вакансию':
             if not resume_cache.get(chat_id):
                 send_message(chat_id, "❌ Сначала загрузи резюме!")
@@ -650,7 +719,6 @@ def webhook():
                 send_message(chat_id, "❌ Нет сохранённой вакансии")
                 return 'ok', 200
             
-            # Генерируем письмо с сохранённой вакансией
             send_message(chat_id, "📝 Генерирую письмо под вашу вакансию... ⏳")
             rtext = resume_cache[chat_id]
             res = analyze_part(rtext, "cover_letter", timeout=40, job_desc=saved_job)
@@ -658,10 +726,7 @@ def webhook():
             if res:
                 res = clean_markdown(res)
                 report_id = str(uuid.uuid4())
-                report_data = {
-                    'type': 'cover',
-                    'letter': res
-                }
+                report_data = {'type': 'cover', 'letter': res}
                 report_cache[report_id] = report_data
                 
                 domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
@@ -672,7 +737,6 @@ def webhook():
             else:
                 send_message(chat_id, "❌ Ошибка генерации")
             
-            # Возвращаем основное меню
             show_post_upload_menu(chat_id)
             return 'ok', 200
 
@@ -681,7 +745,6 @@ def webhook():
                 send_message(chat_id, "❌ Сначала загрузи резюме!")
                 return 'ok', 200
             
-            # Устанавливаем режим ожидания вакансии
             resume_cache[f"{chat_id}_mode"] = "cover_letter_job"
             send_message(chat_id, "📋 Отправьте текст вакансии (можно скопировать с hh.ru):")
             return 'ok', 200
@@ -691,7 +754,6 @@ def webhook():
                 send_message(chat_id, "❌ Сначала загрузи резюме!")
                 return 'ok', 200
             
-            # Генерируем общее письмо
             send_message(chat_id, "📝 Генерирую общее письмо... ⏳")
             rtext = resume_cache[chat_id]
             res = analyze_part(rtext, "cover_letter", timeout=40, job_desc=None)
@@ -699,10 +761,7 @@ def webhook():
             if res:
                 res = clean_markdown(res)
                 report_id = str(uuid.uuid4())
-                report_data = {
-                    'type': 'cover',
-                    'letter': res
-                }
+                report_data = {'type': 'cover', 'letter': res}
                 report_cache[report_id] = report_data
                 
                 domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
@@ -716,12 +775,10 @@ def webhook():
             show_post_upload_menu(chat_id)
             return 'ok', 200
 
-        # Обработка текста вакансии для сопроводительного письма
         if resume_cache.get(f"{chat_id}_mode") == "cover_letter_job":
             job_desc = text[:3000]
             rtext = resume_cache[chat_id]
             
-            # Сохраняем вакансию для будущего использования
             resume_cache[f"{chat_id}_last_job"] = job_desc
             
             send_message(chat_id, "📝 Генерирую письмо под вашу вакансию... ⏳")
@@ -730,10 +787,7 @@ def webhook():
             if res:
                 res = clean_markdown(res)
                 report_id = str(uuid.uuid4())
-                report_data = {
-                    'type': 'cover',
-                    'letter': res
-                }
+                report_data = {'type': 'cover', 'letter': res}
                 report_cache[report_id] = report_data
                 
                 domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
@@ -764,10 +818,8 @@ def webhook():
                 send_message(chat_id, "❌ Не удалось сформировать отчет. Попробуйте позже.")
                 return 'ok', 200
 
-            # Save to DB
             save_analysis(chat_id, rtext, d.get('ats_score', 0), d.get('overall_score', 0), "full_report")
             
-            # Prepare Data for Web
             report_id = str(uuid.uuid4())
             report_data = {
                 'type': 'full',
@@ -776,14 +828,15 @@ def webhook():
                 'ats': d.get('ats_score', 0),
                 'keywords': d.get('keywords', []),
                 'headlines': d.get('headlines', []),
-                'fixes': d.get('fixes', []),
+                'critical_fixes': d.get('critical_fixes', []),
+                'metrics_fixes': d.get('metrics_fixes', []),
+                'style_fixes': d.get('style_fixes', []),
                 'hh_rec': d.get('hh_recommendations', ''),
                 'match_vac': d.get('match_vacancies', []),
                 'verdict': d.get('verdict', '')
             }
             report_cache[report_id] = report_data
             
-            # Get Public URL
             domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
             report_url = f"{domain}/report/{report_id}"
             
