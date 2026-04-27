@@ -224,6 +224,11 @@ def show_start_menu(chat_id):
         ],
         "resize_keyboard": True
     }
+    
+    # МГНОВЕННО показываем меню
+    send_message(chat_id, "👇 <b>Выберите действие:</b>", reply_markup=kb)
+    
+    # Отправляем видео с приветствием в фоне (не блокирует меню)
     welcome_text = (
         "🤖 <b>Добро пожаловать в ResumeEasy!</b>\n\n"
         "Рынок труда в 2026 году изменился:\n"
@@ -236,10 +241,7 @@ def show_start_menu(chat_id):
         "✅ Даст готовые формулировки с ключевыми словами\n\n"
         "📤 <b>Загрузите PDF-резюме прямо сейчас</b> — и получите разбор за 30 секунд."
     )
-    
     send_welcome_video(chat_id, welcome_text)
-    time.sleep(1) 
-    send_message(chat_id, "👇 <b>Выберите действие:</b>", reply_markup=kb)
 
 def show_post_upload_menu(chat_id):
     kb = {
