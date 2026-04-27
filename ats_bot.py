@@ -552,6 +552,10 @@ def webhook():
         if resume_cache.get(f"{chat_id}_mode") == "job_desc":
             job_desc = text[:3000]
             rtext = resume_cache[chat_id]
+            
+            # СОХРАНЯЕМ ВАКАНСИЮ ДЛЯ СОПРОВОДИТЕЛЬНОГО ПИСЬМА
+            resume_cache[f"{chat_id}_last_job"] = job_desc
+            
             send_message(chat_id, "🔍 Сравниваю с вакансией... ⏳")
             
             res = analyze_part(rtext, "job_match", timeout=40, job_desc=job_desc)
