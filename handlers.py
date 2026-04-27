@@ -81,21 +81,52 @@ def register_routes(app):
             return {"error": "Report expired"}, 404
         user_id = report.get('user_id')
         resume_text = resume_cache.get(user_id) or get_last_analysis_text(user_id)
+        
         fixes_text = "\n".join([f"- {f['title']}: {f['desc']}" for f in fixes])
-        prompt = f"""Улучши резюме, применив ТОЛЬКО указанные правки. Остальной текст не меняй. Верни ПОЛНЫЙ текст улучшенного резюме.
+        
+        # Используем новый промпт improve_blocks
+        custom_prompt = f"""Ты — эксперт по улучшению резюме. Примени указанные правки и верни СТРОГО JSON с разбивкой по блокам:
+
+{{{{
+  "blocks": [
+    {{{{"title": "Заголовок", "old_text": "исходный текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}}},
+    {{{{"title": "Контакты", "old_text": "исходный текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}}},
+    {{{{"title": "Опыт работы", "old_text": "исходный текст", "new_text": "улучшенный текст с метриками", "changes": "какие правки применены"}}}},
+    {{{{"title": "Навыки", "old_text": "исходный текст", "new_text": "улучшенный с ключевыми словами", "changes": "какие навыки добавлены"}}}},
+    {{{{"title": "Образование", "old_text": "исходный текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}}}
+  ],
+  "summary": "Краткий итог улучшений"
+}}}}
+
+Правки для применения:
+{fixes_text}
 
 Исходное резюме:
 {resume_text}
 
-Применить эти правки:
-{fixes_text}
-
-Улучшенное резюме (полный текст):"""
-        result = analyze_part("", "", custom_prompt=prompt, timeout=90)
-        return {"text": result or "Ошибка генерации"}
-
-    @app.route('/admin')
-    @app.route('/admin/')
+Верни ПОЛНЫЙ JSON со ВСЕМИ блоками."""
+        
+        result = analyze_part("", "", custom_prompt=custom_prompt, timeout=90)
+        
+        if not result:
+            return {"redirect": None, "error": "AI generation failed"}
+        
+        d = extract_json(result)
+        if not d or 'blocks' not in d:
+            # Fallback: пробуем другой формат
+            d = {"blocks": [], "summary": "Не удалось разобрать блоки"}
+        
+        improved_id = str(uuid.uuid4())
+        report_cache[improved_id] = {
+            'type': 'improved',
+            'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
+            'blocks': d.get('blocks', []),
+            'summary': d.get('summary', ''),
+            'original_report_id': report_id,
+            'user_id': user_id
+        }
+        
+        return {"redirect": f"/improved/{improved_id}"}
     def admin_dashboard():
         conn = None
         try:
