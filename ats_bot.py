@@ -18,8 +18,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 DB_NAME = "resumeeasy.db"
 
-# In-memory storage for reports and resumes (for Railway ephemeral disk safety during session)
-# Note: For production with multiple workers, use Redis. For single worker Railway, dict is fine.
+# In-memory storage for reports and resumes
 report_cache = {} 
 resume_cache = {}
 
@@ -99,7 +98,7 @@ def extract_json(text):
         if m:
             try: return json.loads(m.group())
             except: pass
-        return None
+    return None
 
 def extract_text_from_pdf(file_bytes):
     try:
@@ -132,31 +131,32 @@ def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     
+    # Fixed multiline f-strings with triple quotes
     prompts = {
         "ats_score": f"""Оцени резюме по 5 критериям (0-100 каждый):
 1. Контакты 2. Структура 3. Ключевые слова 4. Достижения с цифрами 5. Формат
 ВЕРНИ ТОЛЬКО JSON: {{"contacts": N, "structure": N, "keywords": N, "achievements": N, "format": N, "overall": N}}
 Резюме:
 {resume_text[:4000]}""",
-        "overall_score": f"Оцени резюме 0-100. ТОЛЬКО число.
+        "overall_score": f"""Оцени резюме 0-100. ТОЛЬКО число.
 Резюме:
-{resume_text[:4000]}",
-        "strengths": f"5-7 сильных сторон. ✅ в начале. БЕЗ *, #, HTML.
+{resume_text[:4000]}""",
+        "strengths": f"""5-7 сильных сторон. ✅ в начале. БЕЗ *, #, HTML.
 Резюме:
-{resume_text[:4000]}",
-        "weaknesses": f"5-7 слабых мест. ⚠️ в начале. БЕЗ *, #, HTML.
+{resume_text[:4000]}""",
+        "weaknesses": f"""5-7 слабых мест. ⚠️ в начале. БЕЗ *, #, HTML.
 Резюме:
-{resume_text[:4000]}",
-        "recommendations": f"5 советов в формате:
+{resume_text[:4000]}""",
+        "recommendations": f"""5 советов в формате:
 ❌ Проблема:
 ✅ Решение:
 💡 Пример:
 БЕЗ *, #, HTML.
 Резюме:
-{resume_text[:4000]}",
-        "keywords": f"8-12 ключевых слов через запятую. ТОЛЬКО слова.
+{resume_text[:4000]}""",
+        "keywords": f"""8-12 ключевых слов через запятую. ТОЛЬКО слова.
 Резюме:
-{resume_text[:4000]}",
+{resume_text[:4000]}""",
         "final_verdict": f"""Дай чёткий финальный вердикт по резюме.
 ОТВЕТЬ СТРОГО ПО ФОРМАТУ:
 🎯 ГОТОВНОСТЬ К РАССЫЛКЕ: [Да/Нет/Частично]
@@ -169,9 +169,9 @@ def analyze_part(resume_text, part_name, timeout=45, custom_prompt=None):
 Без *, #, HTML. Только обычный текст с эмодзи.
 Резюме:
 {resume_text[:4000]}""",
-        "rewrite": f"Перепиши резюме идеально. Только текст. Цифры, глаголы действия. Без *, #, HTML.
+        "rewrite": f"""Перепиши резюме идеально. Только текст. Цифры, глаголы действия. Без *, #, HTML.
 Оригинал:
-{resume_text[:4000]}"
+{resume_text[:4000]}"""
     }
     
     payload = {
@@ -208,14 +208,14 @@ def show_analysis_menu(chat_id):
             ["💪 Сильные стороны", "⚠️ Слабые стороны"], 
             ["🔑 Ключевые слова", "💡 Советы (Было→Стало)"], 
             ["🎯 Вердикт", "✨ Переписать резюме"], 
-            ["🌐 Открыть отчет", "📄 Новое резюме"], 
+            ["🌐 Веб-отчет", "📄 Новое резюме"], 
             ["⬅️ Назад в меню"]
         ],
         "resize_keyboard": True
     }
     send_message(chat_id, "✅ <b>Резюме загружено!</b>\n🎯 Выбери анализ:", reply_markup=kb)
 
-# --- WEB REPORT TEMPLATE (CYBERPUNK STYLE) ---
+# --- WEB REPORT TEMPLATE (PROFESSIONAL DARK STYLE) ---
 REPORT_HTML = """
 <!DOCTYPE html>
 <html lang="ru">
@@ -224,155 +224,97 @@ REPORT_HTML = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Resume Analysis Report</title>
     <style>
-        :root {
-            --bg-color: #0d0d12;
-            --card-bg: #16161e;
-            --accent: #00f3ff;
-            --accent-dim: #00f3ff33;
-            --text-main: #e0e0e0;
-            --text-dim: #888;
-            --success: #00ff9d;
-            --warning: #ffbd00;
-            --danger: #ff0055;
-        }
         body {
-            background-color: var(--bg-color);
-            color: var(--text-main);
-            font-family: 'Courier New', Courier, monospace;
+            background-color: #121212;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
             padding: 20px;
             line-height: 1.6;
         }
         .container {
-            max-width: 800px;
+            max-width: 700px;
             margin: 0 auto;
-            border: 1px solid var(--accent-dim);
+            background: #1e1e1e;
             padding: 30px;
-            box-shadow: 0 0 20px var(--accent-dim);
-            border-radius: 8px;
-            position: relative;
-            overflow: hidden;
-        }
-        .container::before {
-            content: "";
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 4px;
-            background: linear-gradient(90deg, var(--accent), var(--danger));
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
         }
         h1 {
-            color: var(--accent);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            border-bottom: 1px solid var(--accent-dim);
-            padding-bottom: 10px;
-            font-size: 24px;
+            color: #ffffff;
+            border-bottom: 2px solid #333;
+            padding-bottom: 15px;
+            margin-top: 0;
         }
-        h2 {
-            color: var(--success);
-            font-size: 18px;
-            margin-top: 30px;
-            display: flex;
-            align-items: center;
-        }
-        h2::before {
-            content: ">>";
-            margin-right: 10px;
-            color: var(--accent);
-        }
-        .score-box {
+        .score-card {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            background: var(--card-bg);
+            background: #2c2c2c;
             padding: 15px;
-            margin: 10px 0;
-            border-left: 4px solid var(--accent);
+            margin: 15px 0;
+            border-radius: 8px;
+            align-items: center;
         }
         .score-val {
             font-size: 24px;
             font-weight: bold;
-            color: var(--accent);
+            color: #4caf50;
         }
-        .progress-bar {
-            width: 100%;
-            height: 6px;
-            background: #333;
-            margin-top: 5px;
-            border-radius: 3px;
-        }
-        .progress-fill {
-            height: 100%;
-            background: var(--accent);
-            box-shadow: 0 0 10px var(--accent);
+        .section-title {
+            color: #bb86fc;
+            margin-top: 25px;
+            font-size: 18px;
+            font-weight: 600;
         }
         .list-item {
-            background: rgba(255,255,255,0.03);
+            background: #252525;
             padding: 10px;
             margin-bottom: 8px;
-            border-radius: 4px;
+            border-radius: 6px;
+            border-left: 3px solid #333;
         }
         .footer {
             margin-top: 40px;
             text-align: center;
             font-size: 12px;
-            color: var(--text-dim);
-            border-top: 1px solid #333;
-            padding-top: 20px;
-        }
-        .btn {
-            display: inline-block;
-            background: var(--accent);
-            color: #000;
-            padding: 10px 20px;
-            text-decoration: none;
-            font-weight: bold;
-            margin-top: 20px;
-            border-radius: 4px;
+            color: #666;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📊 Resume Analysis Report</h1>
-        <p style="color: var(--text-dim)">Generated by ResumeEasy Bot | {{ date }}</p>
+        <h1>📊 Resume Analysis</h1>
+        <p style="color: #888">Generated on {{ date }}</p>
 
-        <div class="score-box">
-            <div>
-                <div>ATS SCORE</div>
-                <div class="progress-bar"><div class="progress-fill" style="width: {{ ats }}%"></div></div>
-            </div>
-            <div class="score-val">{{ ats }}/100</div>
+        <div class="score-card">
+            <span>ATS Score</span>
+            <span class="score-val">{{ ats }}/100</span>
+        </div>
+        <div class="score-card">
+            <span>Overall Match</span>
+            <span class="score-val" style="color: #03dac6">{{ overall }}/100</span>
         </div>
 
-        <div class="score-box" style="border-left-color: var(--success)">
-            <div>
-                <div>OVERALL MATCH</div>
-                <div class="progress-bar"><div class="progress-fill" style="width: {{ overall }}%; background: var(--success)"></div></div>
-            </div>
-            <div class="score-val" style="color: var(--success)">{{ overall }}/100</div>
-        </div>
-
-        <h2>Strengths</h2>
+        <div class="section-title">Strengths</div>
         {% for item in strengths %}
         <div class="list-item">✅ {{ item }}</div>
         {% endfor %}
 
-        <h2>Weaknesses</h2>
+        <div class="section-title">Weaknesses</div>
         {% for item in weaknesses %}
-        <div class="list-item" style="border-left: 2px solid var(--danger)">⚠️ {{ item }}</div>
+        <div class="list-item" style="border-left-color: #cf6679">⚠️ {{ item }}</div>
         {% endfor %}
 
-        <h2>Recommendations</h2>
+        <div class="section-title">Recommendations</div>
         {% for item in recommendations %}
         <div class="list-item">💡 {{ item }}</div>
         {% endfor %}
 
-        <h2>Keywords Detected</h2>
-        <p style="color: var(--accent)">{{ keywords }}</p>
+        <div class="section-title">Keywords</div>
+        <p style="color: #aaa">{{ keywords }}</p>
 
         <div class="footer">
-            <p>ResumeEasy Bot v2.0</p>
-            <a href="https://t.me/ResumeEasyBot" class="btn">Back to Telegram</a>
+            Powered by ResumeEasy Bot
         </div>
     </div>
 </body>
@@ -385,9 +327,8 @@ REPORT_HTML = """
 def view_report(report_id):
     data = report_cache.get(report_id)
     if not data:
-        return "<h1 style='color:red'>Report expired or not found</h1>", 404
+        return "<h1 style='color:white'>Report expired or not found</h1>", 404
     
-    # Simple parsing of lists from text strings if they are newlines
     def parse_list(text):
         if not text: return []
         return [line.strip() for line in text.split('\n') if line.strip()]
@@ -544,13 +485,13 @@ def webhook():
             return 'ok', 200
 
         # --- WEB REPORT GENERATION ---
-        if text == '🌐 Открыть отчет':
+        if text == '🌐 Веб-отчет':
             rtext = resume_cache.get(chat_id)
             if not rtext:
                 send_message(chat_id, "❌ Сначала загрузи резюме")
                 return 'ok', 200
             
-            send_message(chat_id, "🎨 Создаю отчет... ⏳")
+            send_message(chat_id, "🎨 Создаю веб-отчет... ⏳")
             
             # Parallel-ish calls for speed
             ats_r = analyze_part(rtext, "ats_score", timeout=30)
@@ -580,7 +521,7 @@ def webhook():
             }
             report_cache[report_id] = report_data
             
-            # Get Public URL (Railway provides DOMAIN env var, or fallback)
+            # Get Public URL
             domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
             report_url = f"{domain}/report/{report_id}"
             
