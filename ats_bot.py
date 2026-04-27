@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 DB_NAME = "resumeeasy.db"
 
-# Caches for reports and temporary data
+# Caches
 report_cache = {} 
 resume_cache = {}
 
@@ -451,7 +451,8 @@ def webhook():
     chat_id = None
     try:
         data = request.get_json()
-        if not data or 'message' not in 
+        # FIXED: Added 'data' at the end of the condition
+        if not data or 'message' not in data:
             return 'ok', 200
         
         chat_id = data['message']['chat']['id']
@@ -587,9 +588,6 @@ def webhook():
             send_message(chat_id, "📝 Генерирую сопроводительное письмо... ⏳")
             rtext = resume_cache[chat_id]
             
-            # Check if we have a job description from previous step? 
-            # For now, let's generate generic or ask for job desc if not present
-            # To keep it simple, we'll generate a generic one based on resume
             res = analyze_part(rtext, "cover_letter", timeout=40)
             
             if res:
