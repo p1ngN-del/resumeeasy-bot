@@ -22,10 +22,21 @@ def extract_text_from_pdf(file_bytes):
     try:
         text = ""
         with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
-            for page in pdf.pages:
+            for i, page in enumerate(pdf.pages):
                 page_text = page.extract_text()
                 if page_text:
                     text += page_text + "\n"
+                else:
+                    logger.warning(f"PDF page {i+1} returned no text")
+        # Логируем первые 500 символов и длину
+        logger.info(f"PDF extracted: {len(text)} chars. Preview: {text[:200]}...")
+        # Проверяем наличие ключевых разделов
+        sections = ["образование", "навыки", "опыт работы", "обо мне", "контакты"]
+        for s in sections:
+            if s.lower() in text.lower():
+                logger.info(f"✅ Section '{s}' found in PDF")
+            else:
+                logger.warning(f"❌ Section '{s}' NOT found in PDF")
         return text.strip()
     except Exception as e:
         logger.error(f"PDF error: {e}")
@@ -108,6 +119,8 @@ def register_routes(app):
         if not resume_text:
             return {"redirect": None, "error": "No resume text found"}
         
+        logger.info(f"Improving resume for user {user_id}, text length: {len(resume_text)} chars")
+        
         fixes_text = "\n".join([f"- {f['title']}: {f['desc']}" for f in fixes])
         
         custom_prompt = f"""Ты — эксперт по улучшению резюме. Примени указанные правки и верни СТРОГО JSON (без Markdown-разметки):
@@ -118,7 +131,8 @@ def register_routes(app):
     {{{{"title": "Контакты", "old_text": "исходный текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}}},
     {{{{"title": "Опыт работы", "old_text": "исходный текст", "new_text": "улучшенный текст с метриками", "changes": "какие правки применены"}}}},
     {{{{"title": "Навыки", "old_text": "исходный текст", "new_text": "улучшенный с ключевыми словами", "changes": "какие навыки добавлены"}}}},
-    {{{{"title": "Образование", "old_text": "исходный текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}}}
+    {{{{"title": "Образование и сертификаты", "old_text": "исходный текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}}},
+    {{{{"title": "Обо мне", "old_text": "исходный текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}}}
   ],
   "summary": "Краткий итог улучшений",
   "overall_score": 0,
@@ -126,22 +140,27 @@ def register_routes(app):
 }}}}
 
 НЕ используй Markdown-разметку (звездочки, решетки). Только чистый текст.
+НЕ придумывай несуществующие разделы. old_text должен быть ТОЧНО из исходного резюме.
 
 Правки для применения:
 {fixes_text}
 
 Исходное резюме:
-{resume_text}
+{resume_text[:4000]}
 
-Верни ПОЛНЫЙ JSON со ВСЕМИ блоками. Если блока нет в резюме — old_text пустой."""
+Верни ПОЛНЫЙ JSON со ВСЕМИ блоками. Если блока нет в резюме — old_text оставь пустым."""
         
         result = analyze_part("", "", custom_prompt=custom_prompt, timeout=90)
         
         if not result:
+            logger.error("AI returned empty result for improve")
             return {"redirect": None, "error": "AI generation failed"}
+        
+        logger.info(f"AI improve result preview: {result[:200]}...")
         
         d = extract_json(result)
         if not d or 'blocks' not in d:
+            logger.error(f"Failed to parse AI improve result: {result[:300]}")
             return {"redirect": None, "error": "Failed to parse AI response"}
         
         improved_id = str(uuid.uuid4())
@@ -156,6 +175,7 @@ def register_routes(app):
             'user_id': user_id
         }
         
+        logger.info(f"Improved resume created: {improved_id}")
         return {"redirect": f"/improved/{improved_id}"}
 
     @app.route('/admin')
@@ -285,6 +305,7 @@ def register_routes(app):
                 if not finfo.get('ok'): send_message(chat_id, "❌ Ошибка файла"); return 'ok', 200
                 rtext = extract_text_from_pdf(req.get(f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{finfo['result']['file_path']}", timeout=60).content)
                 if not rtext or len(rtext.split()) < 50: send_message(chat_id, "❌ Текст не извлечён"); return 'ok', 200
+                logger.info(f"PDF loaded for user {chat_id}: {len(rtext)} chars")
                 resume_cache[chat_id] = rtext
                 resume_cache[f"{chat_id}_mode"] = None
                 show_post_upload_menu(chat_id); return 'ok', 200
@@ -364,9 +385,11 @@ def register_routes(app):
                 rtext = resume_cache.get(chat_id)
                 if not rtext: send_message(chat_id, "❌ Сначала загрузи резюме"); return 'ok', 200
                 send_message(chat_id, "🧠 HR-эксперт анализирует... ⏳")
+                logger.info(f"Starting full_report analysis for user {chat_id}, text length: {len(rtext)}")
                 res = analyze_part(rtext, "full_report", timeout=90)
                 d = extract_json(res)
                 if not d: send_message(chat_id, "❌ Не удалось сформировать отчет."); return 'ok', 200
+                logger.info(f"Report generated for user {chat_id}: ATS={d.get('ats_score')}, Overall={d.get('overall_score')}")
                 save_analysis(chat_id, rtext, d.get('ats_score', 0), d.get('overall_score', 0), "full_report")
                 report_id = str(uuid.uuid4())
                 report_cache[report_id] = {
