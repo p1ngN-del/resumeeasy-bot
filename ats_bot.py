@@ -593,8 +593,9 @@ def webhook():
             send_message(chat_id, "📝 Генерирую сопроводительное письмо... ⏳")
             rtext = resume_cache[chat_id]
             
-            # If we have a job desc in cache, use it, otherwise generic
+            # БЕРЕМ СОХРАНЕННУЮ ВАКАНСИЮ (если была сравнение)
             job_desc = resume_cache.get(f"{chat_id}_last_job")
+            
             res = analyze_part(rtext, "cover_letter", timeout=40, job_desc=job_desc)
             
             if res:
