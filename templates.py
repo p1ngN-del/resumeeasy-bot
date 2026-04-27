@@ -255,6 +255,91 @@ COVER_HTML = """
 </body>
 </html>
 """
+IMPROVED_HTML = """
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Improved Resume</title>
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { color: #ffffff; text-align: center; margin-bottom: 5px; }
+        .subtitle { text-align: center; color: #888; margin-bottom: 25px; }
+        .block { background: #1e1e1e; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #333; }
+        .block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .block-title { color: #bb86fc; font-size: 18px; font-weight: bold; }
+        .block-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .badge-changed { background: #03dac6; color: #000; }
+        .badge-unchanged { background: #333; color: #888; }
+        .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .compare-col { background: #252525; padding: 15px; border-radius: 8px; }
+        .compare-col h4 { color: #888; margin-top: 0; font-size: 12px; text-transform: uppercase; }
+        .old-text { color: #cf6679; white-space: pre-wrap; font-size: 14px; }
+        .new-text { color: #03dac6; white-space: pre-wrap; font-size: 14px; }
+        .changes-note { background: #1a1a2e; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 13px; color: #ffb74d; }
+        .btn-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+        .btn { padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; font-size: 14px; text-decoration: none; display: inline-block; text-align: center; }
+        .btn-primary { background: #bb86fc; color: #000; flex: 1; }
+        .btn-secondary { background: #03dac6; color: #000; }
+        .btn-copy { background: #333; color: #fff; padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px; }
+        .summary-box { background: #1a1a2e; border: 1px solid #bb86fc; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px; }
+        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ Улучшенное резюме</h1>
+        <p class="subtitle">{{ date }}</p>
+
+        <div class="summary-box">
+            <p style="color:#ffb74d; font-size:16px; margin:0;">{{ summary }}</p>
+        </div>
+
+        {% for block in blocks %}
+        <div class="block">
+            <div class="block-header">
+                <span class="block-title">{{ block.title }}</span>
+                <span class="block-badge {% if block.old_text != block.new_text %}badge-changed{% else %}badge-unchanged{% endif %}">
+                    {% if block.old_text != block.new_text %}ИЗМЕНЕНО{% else %}БЕЗ ИЗМЕНЕНИЙ{% endif %}
+                </span>
+            </div>
+            <div class="compare-grid">
+                <div class="compare-col">
+                    <h4>📄 Было</h4>
+                    <div class="old-text">{{ block.old_text or '(отсутствовало)' }}</div>
+                </div>
+                <div class="compare-col">
+                    <h4>✅ Стало</h4>
+                    <div class="new-text">{{ block.new_text }}</div>
+                    <button class="btn-copy" onclick="copyBlock(this)" data-text="{{ block.new_text }}">📋 Копировать</button>
+                </div>
+            </div>
+            {% if block.changes %}
+            <div class="changes-note">💡 {{ block.changes }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div class="btn-row">
+            <a href="/api/recheck/{{ report_id }}" class="btn btn-secondary">🔄 Проверить новое резюме</a>
+        </div>
+
+        <div class="footer">Powered by ResumeEasy Bot</div>
+    </div>
+    <script>
+        function copyBlock(btn) {
+            navigator.clipboard.writeText(btn.getAttribute('data-text'))
+                .then(() => {
+                    btn.innerText = '✅ Скопировано!';
+                    setTimeout(() => btn.innerText = '📋 Копировать', 2000);
+                });
+        }
+    </script>
+</body>
+</html>
+"""
 
 ADMIN_HTML = """
 <!DOCTYPE html>
