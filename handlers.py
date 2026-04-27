@@ -6,7 +6,7 @@ import csv
 import requests as req
 from datetime import datetime, timedelta
 from flask import request, render_template_string, Response
-from PyPDF2 import PdfReader
+from PyPDF2 import pdfplumber
 
 from config import TELEGRAM_TOKEN, ADMIN_IDS, logger
 from database import save_user, save_analysis, get_user_history, get_last_analysis_text, get_all_users, get_db
@@ -20,8 +20,13 @@ resume_cache = {}
 
 def extract_text_from_pdf(file_bytes):
     try:
-        pdf = PdfReader(io.BytesIO(file_bytes))
-        return "\n".join(p.extract_text() or "" for p in pdf.pages).strip()
+        text = ""
+        with pdfplumber.open(io.BytesIO(file_bytes)) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+        return text.strip()
     except Exception as e:
         logger.error(f"PDF error: {e}")
         return None
