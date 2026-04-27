@@ -129,31 +129,64 @@ def register_routes(app):
                 if row:
                     user_id = row[0]
                     resume_text = row[1]
+                    # Восстанавливаем в кэш
+                    resume_cache[user_id] = resume_text
             except Exception as e:
                 logger.error(f"DB lookup error: {e}")
         
         if not resume_text:
-            return {"redirect": None, "error": "Не могу найти текст резюме. Загрузите резюме заново и нажмите «Получить отчет»."}
+            return {"redirect": None, "error": "Не могу найти текст резюме. Нажмите «Получить отчет» ещё раз."}
         
-        logger.info(f"Improving resume for user {user_id}, text length: {len(resume_text)} chars")
+        # ОПРЕДЕЛЯЕМ КАКИЕ БЛОКИ ЗАТРОНУТЫ
+        # Сопоставляем категории правок с блоками резюме
+        category_to_blocks = {
+            "critical": ["Заголовок и контакты", "Опыт работы"],
+            "metrics": ["Опыт работы"],
+            "style": ["Обо мне", "Опыт работы"]
+        }
         
-        fixes_text = "\n".join([f"- {f['title']}: {f['desc']}" for f in fixes])
+        # Собираем только затронутые блоки
+        affected_blocks = set()
+        for fix in fixes:
+            # Определяем категорию по тексту правки
+            title = fix.get('title', '').lower()
+            desc = fix.get('desc', '').lower()
+            
+            if any(word in title + desc for word in ['заголовок', 'контакт', 'телефон', 'почта']):
+                affected_blocks.add("Заголовок и контакты")
+            if any(word in title + desc for word in ['опыт', 'работа', 'должность', 'метрик', 'цифр', 'процент', 'увелич', 'сократил']):
+                affected_blocks.add("Опыт работы")
+            if any(word in title + desc for word in ['навык', 'ключевые слова', 'hard skill', 'soft skill']):
+                affected_blocks.add("Навыки")
+            if any(word in title + desc for word in ['образование', 'вуз', 'университет', 'курс']):
+                affected_blocks.add("Образование")
+            if any(word in title + desc for word in ['обо мне', 'о себе', 'стиль', 'язык', 'канцеляр', 'вода']):
+                affected_blocks.add("Обо мне")
         
-        custom_prompt = f"""Ты — эксперт по улучшению резюме. Скопируй КАЖДЫЙ блок из исходного резюме и примени правки. Верни СТРОГО JSON:
+        # Если ничего не определили — применяем ко всем блокам
+        if not affected_blocks:
+            affected_blocks = {"Заголовок и контакты", "Опыт работы", "Навыки", "Образование", "Обо мне"}
+        
+        logger.info(f"Applying fixes to blocks: {affected_blocks}")
+        
+        fixes_text = "\n".join([f"- [{f['title']}] {f['desc']}" for f in fixes])
+        
+        custom_prompt = f"""Ты — эксперт по улучшению резюме. ИЗМЕНИ ТОЛЬКО указанные блоки: {', '.join(affected_blocks)}. Остальные блоки оставь БЕЗ ИЗМЕНЕНИЙ (new_text = old_text). Верни СТРОГО JSON:
 
-{{"blocks": [{{"title": "Заголовок и контакты", "old_text": "скопируй сюда текст из резюме", "new_text": "улучшенный текст", "changes": "что изменилось"}}, {{"title": "Опыт работы", "old_text": "скопируй сюда ВЕСЬ текст опыта из резюме", "new_text": "улучшенный с метриками", "changes": "правки"}}, {{"title": "Навыки", "old_text": "скопируй сюда ВСЕ навыки из резюме", "new_text": "сгруппированные по категориям", "changes": "сгруппированы"}}, {{"title": "Образование", "old_text": "скопируй сюда текст об образовании", "new_text": "улучшенный текст", "changes": ""}}, {{"title": "Обо мне", "old_text": "скопируй сюда текст", "new_text": "улучшенный", "changes": ""}}], "summary": "Итог", "overall_score": 0, "ats_score": 0}}
+{{"blocks": [{{"title": "Заголовок и контакты", "old_text": "текст из резюме", "new_text": "текст", "changes": "что изменилось"}}, {{"title": "Опыт работы", "old_text": "текст из резюме", "new_text": "текст", "changes": "что изменилось"}}, {{"title": "Навыки", "old_text": "текст из резюме", "new_text": "текст", "changes": ""}}, {{"title": "Образование", "old_text": "текст из резюме", "new_text": "текст", "changes": ""}}, {{"title": "Обо мне", "old_text": "текст из резюме", "new_text": "текст", "changes": ""}}], "summary": "Итог", "overall_score": 0, "ats_score": 0}}
 
 ПРАВИЛА:
-- old_text ОБЯЗАТЕЛЬНО заполни реальным текстом из исходного резюме. НЕ оставляй пустым если в резюме есть этот блок.
-- НЕ придумывай навыки или опыт, которых нет в резюме.
-- НЕ используй Markdown, только чистый текст.
-- НЕ трогай формат телефона и контактов — оставь как есть.
+- old_text ОБЯЗАТЕЛЬНО заполни текстом из резюме. НЕ оставляй пустым.
+- НЕ ИЗМЕНЯЙ блоки, которых нет в списке: {', '.join(affected_blocks)}. Для них new_text = old_text.
+- НЕ придумывай информацию, которой нет в резюме.
+- НЕ используй Markdown.
+- НЕ трогай формат телефона, email, дат.
 
-Правки:
+Правки (примени ТОЛЬКО к указанным блокам):
 {fixes_text}
 
-Исходное резюме:
-{resume_text[:4000]}
+ВСЁ РЕЗЮМЕ:
+{resume_text}
 
 Верни ПОЛНЫЙ JSON."""
         
@@ -167,26 +200,11 @@ def register_routes(app):
             logger.error(f"Failed to parse: {result[:300]}")
             return {"redirect": None, "error": "Не удалось разобрать ответ AI."}
         
-        # Проверяем и заполняем пустые блоки
-        blocks = d.get('blocks', [])
-        for block in blocks:
-            if not block.get('old_text') or block['old_text'].strip() == '':
-                # Ищем текст блока в резюме по названию
-                title = block.get('title', '').lower()
-                if 'навык' in title:
-                    block['old_text'] = '(навыки не найдены — проверьте исходное резюме)'
-                elif 'образование' in title:
-                    block['old_text'] = '(образование не найдено — проверьте исходное резюме)'
-                elif 'опыт' in title:
-                    block['old_text'] = '(опыт не найден — проверьте исходное резюме)'
-                elif 'обо мне' in title:
-                    block['old_text'] = '(раздел не найден — проверьте исходное резюме)'
-        
         improved_id = str(uuid.uuid4())
         report_cache[improved_id] = {
             'type': 'improved',
             'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
-            'blocks': blocks,
+            'blocks': d.get('blocks', []),
             'summary': d.get('summary', ''),
             'overall': d.get('overall_score', 0),
             'ats': d.get('ats_score', 0),
@@ -196,10 +214,10 @@ def register_routes(app):
         
         try:
             if user_id:
-                save_analysis(user_id, json.dumps(blocks)[:500], 
+                save_analysis(user_id, json.dumps(d.get('blocks', []))[:500], 
                             d.get('ats_score', 0), d.get('overall_score', 0), "improved")
         except Exception as e:
-            logger.error(f"Failed to save improved to DB: {e}")
+            logger.error(f"Failed to save to DB: {e}")
         
         return {"redirect": f"/improved/{improved_id}"}
 
