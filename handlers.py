@@ -11,7 +11,7 @@ from config import TELEGRAM_TOKEN, ADMIN_IDS, logger
 from database import save_user, save_analysis, get_user_history, get_last_analysis_text, get_all_users
 from ai import analyze_part
 from telegram_helpers import send_message, send_welcome_video, clean_markdown, extract_json
-from templates import REPORT_HTML, MATCH_HTML, COVER_HTML, ADMIN_HTML, ADMIN_USERS_HTML
+from templates import REPORT_HTML, MATCH_HTML, COVER_HTML, IMPROVED_HTML, ADMIN_HTML, ADMIN_USERS_HTML
 
 # Caches
 report_cache = {} 
