@@ -1,4 +1,5 @@
 import requests
+import json
 from config import DEEPSEEK_API_KEY, logger
 
 def analyze_part(resume_text, part_name, timeout=60, custom_prompt=None, job_desc=None):
@@ -66,7 +67,53 @@ def analyze_part(resume_text, part_name, timeout=60, custom_prompt=None, job_des
 {resume_text[:3000]}
 
 Вакансия:
-{job_text[:3000]}"""
+{job_text[:3000]}""",
+
+        "improve_blocks": f"""Ты — эксперт по улучшению резюме. Примени указанные правки к резюме и верни СТРОГО JSON с разбивкой по блокам:
+
+{{
+  "blocks": [
+    {{
+      "title": "Заголовок",
+      "old_text": "исходный текст блока",
+      "new_text": "улучшенный текст блока",
+      "changes": "что изменилось (одно предложение)"
+    }},
+    {{
+      "title": "Контакты",
+      "old_text": "исходный текст",
+      "new_text": "улучшенный текст",
+      "changes": "что изменилось"
+    }},
+    {{
+      "title": "Опыт работы",
+      "old_text": "исходный текст",
+      "new_text": "улучшенный текст с метриками и цифрами",
+      "changes": "какие правки применены"
+    }},
+    {{
+      "title": "Навыки",
+      "old_text": "исходный текст",
+      "new_text": "улучшенный текст с ключевыми словами",
+      "changes": "какие навыки добавлены"
+    }},
+    {{
+      "title": "Образование",
+      "old_text": "исходный текст",
+      "new_text": "улучшенный текст",
+      "changes": "что изменилось"
+    }}
+  ],
+  "summary": "Краткий итог: что улучшено, на сколько баллов примерно выросло"
+}}
+
+Правки для применения:
+{fixes_text}
+
+Исходное резюме:
+{resume_text}
+
+Верни ПОЛНЫЙ JSON со ВСЕМИ блоками. Если какого-то блока нет в резюме — оставь old_text пустым."""
     }
     
     payload = {
