@@ -6,7 +6,7 @@ import csv
 import requests as req
 from datetime import datetime, timedelta
 from flask import request, render_template_string, Response
-from PyPDF2 import pdfplumber
+import pdfplumber
 
 from config import TELEGRAM_TOKEN, ADMIN_IDS, logger
 from database import save_user, save_analysis, get_user_history, get_last_analysis_text, get_all_users, get_db
