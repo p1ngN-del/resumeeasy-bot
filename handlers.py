@@ -32,13 +32,22 @@ def extract_text_from_pdf(file_bytes):
         return None
 
 def show_start_menu(chat_id):
-    kb = {
-        "keyboard": [
-            ["📄 Загрузить резюме"], 
-            ["❓ Помощь", "🔐 Админ-панель"]
-        ],
-        "resize_keyboard": True
-    }
+    if chat_id in ADMIN_IDS:
+        kb = {
+            "keyboard": [
+                ["📄 Загрузить резюме"], 
+                ["❓ Помощь", "🔐 Админ-панель"]
+            ],
+            "resize_keyboard": True
+        }
+    else:
+        kb = {
+            "keyboard": [
+                ["📄 Загрузить резюме"], 
+                ["❓ Помощь"]
+            ],
+            "resize_keyboard": True
+        }
     send_message(chat_id, "👇 <b>Выберите действие:</b>", reply_markup=kb)
     welcome_text = (
         "🤖 <b>Добро пожаловать в ResumeEasy!</b>\n\n"
