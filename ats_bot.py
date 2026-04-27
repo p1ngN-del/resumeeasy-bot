@@ -90,15 +90,6 @@ def send_message(chat_id, text, reply_markup=None, parse_mode="HTML"):
         except Exception as e:
             logger.error(f"Send error: {e}")
 
-def clean_markdown(text):
-    """Убирает Markdown-разметку из текста"""
-    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # **жирный**
-    text = re.sub(r'\*(.*?)\*', r'\1', text)        # *курсив*
-    text = re.sub(r'___(.*?)___', r'\1', text)      # ___жирный курсив___
-    text = re.sub(r'__(.*?)__', r'\1', text)        # __жирный__
-    text = re.sub(r'_(.*?)_', r'\1', text)          # _курсив_
-    return text
-
 def send_welcome_video(chat_id, caption):
     """Отправляет приветственное видео с подписью"""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendVideo"
@@ -117,6 +108,15 @@ def send_welcome_video(chat_id, caption):
     except Exception as e:
         logger.error(f"Video send error: {e}")
         send_message(chat_id, caption)
+
+def clean_markdown(text):
+    """Убирает Markdown-разметку из текста"""
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # **жирный**
+    text = re.sub(r'\*(.*?)\*', r'\1', text)        # *курсив*
+    text = re.sub(r'___(.*?)___', r'\1', text)      # ___жирный курсив___
+    text = re.sub(r'__(.*?)__', r'\1', text)        # __жирный__
+    text = re.sub(r'_(.*?)_', r'\1', text)          # _курсив_
+    return text
 
 def extract_json(text):
     text = re.sub(r'```json\s*|\s*```', '', text).strip()
@@ -656,6 +656,7 @@ def webhook():
             res = analyze_part(rtext, "cover_letter", timeout=40, job_desc=saved_job)
             
             if res:
+                res = clean_markdown(res)
                 report_id = str(uuid.uuid4())
                 report_data = {
                     'type': 'cover',
@@ -696,6 +697,7 @@ def webhook():
             res = analyze_part(rtext, "cover_letter", timeout=40, job_desc=None)
             
             if res:
+                res = clean_markdown(res)
                 report_id = str(uuid.uuid4())
                 report_data = {
                     'type': 'cover',
@@ -726,6 +728,7 @@ def webhook():
             res = analyze_part(rtext, "cover_letter", timeout=40, job_desc=job_desc)
             
             if res:
+                res = clean_markdown(res)
                 report_id = str(uuid.uuid4())
                 report_data = {
                     'type': 'cover',
