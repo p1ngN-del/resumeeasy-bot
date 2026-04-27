@@ -162,10 +162,14 @@ REPORT_HTML = """
             })
             .then(r => r.json())
             .then(data => {
-                document.getElementById('improvedText').innerText = data.text;
-                document.getElementById('improvedResume').style.display = 'block';
-                document.getElementById('genBtn').innerText = '✅ Готово!';
-                document.getElementById('genBtn').disabled = false;
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    document.getElementById('improvedText').innerText = data.text || 'Ошибка';
+                    document.getElementById('improvedResume').style.display = 'block';
+                    document.getElementById('genBtn').innerText = '✅ Готово!';
+                    document.getElementById('genBtn').disabled = false;
+                }
             })
             .catch(() => {
                 document.getElementById('genBtn').innerText = '❌ Ошибка';
