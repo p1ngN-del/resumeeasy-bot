@@ -100,18 +100,6 @@ def register_routes(app):
     def view_improved(improved_id):
         data = report_cache.get(improved_id)
         if not data:
-            # Пробуем найти в БД
-            try:
-                conn = get_db()
-                c = conn.cursor()
-                c.execute("SELECT resume_text, ats_score, overall_score FROM analyses WHERE analysis_type='improved' AND resume_text LIKE %s ORDER BY id DESC LIMIT 1", (f'%{improved_id}%',))
-                row = c.fetchone()
-                conn.close()
-                if row:
-                    data = {'type': 'improved', 'blocks': [], 'summary': 'Загружено из БД', 'overall': row[2] or 0, 'ats': row[1] or 0}
-                    return render_template_string(IMPROVED_HTML, **data, report_id=improved_id)
-            except Exception as e:
-                logger.error(f"DB lookup for improved failed: {e}")
             return "<h1 style='color:white;font-family:sans-serif;text-align:center;margin-top:50px'>Срок действия истёк 😢<br><small>Сгенерируйте заново</small></h1>", 404
         return render_template_string(IMPROVED_HTML, **data, report_id=improved_id)
 
@@ -151,19 +139,23 @@ def register_routes(app):
         
         fixes_text = "\n".join([f"- {f['title']}: {f['desc']}" for f in fixes])
         
-        custom_prompt = f"""Ты — эксперт по улучшению резюме. Примени указанные правки и верни СТРОГО JSON (без Markdown-разметки):
+        custom_prompt = f"""Ты — эксперт по улучшению резюме. Скопируй КАЖДЫЙ блок из исходного резюме и примени правки. Верни СТРОГО JSON:
 
-{{"blocks": [{{"title": "Заголовок", "old_text": "текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}, {{"title": "Контакты", "old_text": "текст", "new_text": "текст", "changes": ""}}, {{"title": "Опыт работы", "old_text": "текст", "new_text": "улучшенный с метриками", "changes": "правки"}}, {{"title": "Навыки", "old_text": "текст", "new_text": "с ключевыми словами", "changes": "добавлены навыки"}}, {{"title": "Образование", "old_text": "текст", "new_text": "текст", "changes": ""}}, {{"title": "Обо мне", "old_text": "текст", "new_text": "улучшенный текст", "changes": ""}}], "summary": "Итог", "overall_score": 0, "ats_score": 0}}
+{{"blocks": [{{"title": "Заголовок и контакты", "old_text": "скопируй сюда текст из резюме", "new_text": "улучшенный текст", "changes": "что изменилось"}}, {{"title": "Опыт работы", "old_text": "скопируй сюда ВЕСЬ текст опыта из резюме", "new_text": "улучшенный с метриками", "changes": "правки"}}, {{"title": "Навыки", "old_text": "скопируй сюда ВСЕ навыки из резюме", "new_text": "сгруппированные по категориям", "changes": "сгруппированы"}}, {{"title": "Образование", "old_text": "скопируй сюда текст об образовании", "new_text": "улучшенный текст", "changes": ""}}, {{"title": "Обо мне", "old_text": "скопируй сюда текст", "new_text": "улучшенный", "changes": ""}}], "summary": "Итог", "overall_score": 0, "ats_score": 0}}
 
-НЕ используй Markdown. Только чистый текст.
+ПРАВИЛА:
+- old_text ОБЯЗАТЕЛЬНО заполни реальным текстом из исходного резюме. НЕ оставляй пустым если в резюме есть этот блок.
+- НЕ придумывай навыки или опыт, которых нет в резюме.
+- НЕ используй Markdown, только чистый текст.
+- НЕ трогай формат телефона и контактов — оставь как есть.
 
-Правки для применения:
+Правки:
 {fixes_text}
 
 Исходное резюме:
 {resume_text[:4000]}
 
-Верни ПОЛНЫЙ JSON со ВСЕМИ блоками."""
+Верни ПОЛНЫЙ JSON."""
         
         result = analyze_part("", "", custom_prompt=custom_prompt, timeout=90)
         
@@ -175,11 +167,26 @@ def register_routes(app):
             logger.error(f"Failed to parse: {result[:300]}")
             return {"redirect": None, "error": "Не удалось разобрать ответ AI."}
         
+        # Проверяем и заполняем пустые блоки
+        blocks = d.get('blocks', [])
+        for block in blocks:
+            if not block.get('old_text') or block['old_text'].strip() == '':
+                # Ищем текст блока в резюме по названию
+                title = block.get('title', '').lower()
+                if 'навык' in title:
+                    block['old_text'] = '(навыки не найдены — проверьте исходное резюме)'
+                elif 'образование' in title:
+                    block['old_text'] = '(образование не найдено — проверьте исходное резюме)'
+                elif 'опыт' in title:
+                    block['old_text'] = '(опыт не найден — проверьте исходное резюме)'
+                elif 'обо мне' in title:
+                    block['old_text'] = '(раздел не найден — проверьте исходное резюме)'
+        
         improved_id = str(uuid.uuid4())
         report_cache[improved_id] = {
             'type': 'improved',
             'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
-            'blocks': d.get('blocks', []),
+            'blocks': blocks,
             'summary': d.get('summary', ''),
             'overall': d.get('overall_score', 0),
             'ats': d.get('ats_score', 0),
@@ -187,10 +194,9 @@ def register_routes(app):
             'user_id': user_id
         }
         
-        # Сохраняем в БД
         try:
             if user_id:
-                save_analysis(user_id, json.dumps(d.get('blocks', []))[:500], 
+                save_analysis(user_id, json.dumps(blocks)[:500], 
                             d.get('ats_score', 0), d.get('overall_score', 0), "improved")
         except Exception as e:
             logger.error(f"Failed to save improved to DB: {e}")
@@ -410,7 +416,6 @@ def register_routes(app):
                 if not d: send_message(chat_id, "❌ Не удалось сформировать отчет."); return 'ok', 200
                 logger.info(f"Report generated for user {chat_id}: ATS={d.get('ats_score')}, Overall={d.get('overall_score')}")
                 report_id = str(uuid.uuid4())
-                # Сохраняем в БД с report_id
                 save_analysis(chat_id, rtext[:500] + f"\n[report_id:{report_id}]", d.get('ats_score', 0), d.get('overall_score', 0), "full_report")
                 report_cache[report_id] = {
                     'type': 'full', 'user_id': chat_id,
