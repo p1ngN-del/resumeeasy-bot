@@ -590,12 +590,127 @@ def webhook():
                 send_message(chat_id, "❌ Сначала загрузи резюме!")
                 return 'ok', 200
             
-            send_message(chat_id, "📝 Генерирую сопроводительное письмо... ⏳")
+            # Проверяем, есть ли сохранённая вакансия
+            saved_job = resume_cache.get(f"{chat_id}_last_job")
+            
+            if saved_job:
+                # Есть сохранённая вакансия — предлагаем выбор
+                kb = {
+                    "keyboard": [
+                        ["📋 Использовать прошлую вакансию"],
+                        ["🆕 Указать новую вакансию"],
+                        ["📝 Без вакансии (общее)"]
+                    ],
+                    "resize_keyboard": True
+                }
+                send_message(
+                    chat_id, 
+                    "📝 <b>Сопроводительное письмо</b>\n\n"
+                    "У вас есть сохранённая вакансия из предыдущего сравнения.\n"
+                    "Хотите использовать её или указать новую?",
+                    reply_markup=kb
+                )
+            else:
+                # Нет сохранённой вакансии — предлагаем варианты
+                kb = {
+                    "keyboard": [
+                        ["🆕 Указать вакансию"],
+                        ["📝 Без вакансии (общее)"]
+                    ],
+                    "resize_keyboard": True
+                }
+                send_message(
+                    chat_id,
+                    "📝 <b>Сопроводительное письмо</b>\n\n"
+                    "Хотите написать письмо под конкретную вакансию или общее?",
+                    reply_markup=kb
+                )
+            return 'ok', 200
+
+        # Обработка выбора для сопроводительного письма
+        if text == '📋 Использовать прошлую вакансию':
+            if not resume_cache.get(chat_id):
+                send_message(chat_id, "❌ Сначала загрузи резюме!")
+                return 'ok', 200
+            
+            saved_job = resume_cache.get(f"{chat_id}_last_job")
+            if not saved_job:
+                send_message(chat_id, "❌ Нет сохранённой вакансии")
+                return 'ok', 200
+            
+            # Генерируем письмо с сохранённой вакансией
+            send_message(chat_id, "📝 Генерирую письмо под вашу вакансию... ⏳")
+            rtext = resume_cache[chat_id]
+            res = analyze_part(rtext, "cover_letter", timeout=40, job_desc=saved_job)
+            
+            if res:
+                report_id = str(uuid.uuid4())
+                report_data = {
+                    'type': 'cover',
+                    'letter': res
+                }
+                report_cache[report_id] = report_data
+                
+                domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
+                report_url = f"{domain}/report/{report_id}"
+                
+                kb = {"inline_keyboard": [[{"text": "🌐 Открыть письмо", "url": report_url}]]}
+                send_message(chat_id, f"✅ <b>Письмо готово!</b>\nНажми кнопку ниже, чтобы открыть и скопировать текст.", reply_markup=kb)
+            else:
+                send_message(chat_id, "❌ Ошибка генерации")
+            
+            # Возвращаем основное меню
+            show_post_upload_menu(chat_id)
+            return 'ok', 200
+
+        if text == '🆕 Указать новую вакансию' or text == '🆕 Указать вакансию':
+            if not resume_cache.get(chat_id):
+                send_message(chat_id, "❌ Сначала загрузи резюме!")
+                return 'ok', 200
+            
+            # Устанавливаем режим ожидания вакансии
+            resume_cache[f"{chat_id}_mode"] = "cover_letter_job"
+            send_message(chat_id, "📋 Отправьте текст вакансии (можно скопировать с hh.ru):")
+            return 'ok', 200
+
+        if text == '📝 Без вакансии (общее)':
+            if not resume_cache.get(chat_id):
+                send_message(chat_id, "❌ Сначала загрузи резюме!")
+                return 'ok', 200
+            
+            # Генерируем общее письмо
+            send_message(chat_id, "📝 Генерирую общее письмо... ⏳")
+            rtext = resume_cache[chat_id]
+            res = analyze_part(rtext, "cover_letter", timeout=40, job_desc=None)
+            
+            if res:
+                report_id = str(uuid.uuid4())
+                report_data = {
+                    'type': 'cover',
+                    'letter': res
+                }
+                report_cache[report_id] = report_data
+                
+                domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
+                report_url = f"{domain}/report/{report_id}"
+                
+                kb = {"inline_keyboard": [[{"text": "🌐 Открыть письмо", "url": report_url}]]}
+                send_message(chat_id, f"✅ <b>Письмо готово!</b>\nНажми кнопку ниже, чтобы открыть и скопировать текст.", reply_markup=kb)
+            else:
+                send_message(chat_id, "❌ Ошибка генерации")
+            
+            show_post_upload_menu(chat_id)
+            return 'ok', 200
+
+        # Обработка текста вакансии для сопроводительного письма
+        if resume_cache.get(f"{chat_id}_mode") == "cover_letter_job":
+            job_desc = text[:3000]
             rtext = resume_cache[chat_id]
             
-            # БЕРЕМ СОХРАНЕННУЮ ВАКАНСИЮ (если была сравнение)
-            job_desc = resume_cache.get(f"{chat_id}_last_job")
+            # Сохраняем вакансию для будущего использования
+            resume_cache[f"{chat_id}_last_job"] = job_desc
             
+            send_message(chat_id, "📝 Генерирую письмо под вашу вакансию... ⏳")
             res = analyze_part(rtext, "cover_letter", timeout=40, job_desc=job_desc)
             
             if res:
@@ -613,6 +728,9 @@ def webhook():
                 send_message(chat_id, f"✅ <b>Письмо готово!</b>\nНажми кнопку ниже, чтобы открыть и скопировать текст.", reply_markup=kb)
             else:
                 send_message(chat_id, "❌ Ошибка генерации")
+            
+            resume_cache[f"{chat_id}_mode"] = None
+            show_post_upload_menu(chat_id)
             return 'ok', 200
 
         # --- FULL REPORT GENERATION ---
@@ -624,7 +742,6 @@ def webhook():
             
             send_message(chat_id, "🧠 HR-эксперт анализирует резюме... Это займет около минуты ⏳")
             
-            # FIXED: No job_desc passed here, so it defaults to None safely inside analyze_part
             res = analyze_part(rtext, "full_report", timeout=90)
             d = extract_json(res)
             
@@ -666,15 +783,3 @@ def webhook():
         if chat_id: 
             send_message(chat_id, f"❌ Ошибка: {str(e)[:100]}")
         return 'error', 500
-
-@app.route('/', methods=['GET','HEAD'])
-def index(): 
-    return '✅ Online', 200
-
-@app.route('/health')
-def health(): 
-    return {"status":"ok"}, 200
-
-if __name__ != "__main__":
-    init_db()
-    logger.info("🚀 Started")
