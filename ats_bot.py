@@ -783,3 +783,10 @@ def webhook():
         if chat_id: 
             send_message(chat_id, f"❌ Ошибка: {str(e)[:100]}")
         return 'error', 500
+
+# --- STARTUP ---
+init_db()
+logger.info("🚀 Started")
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
