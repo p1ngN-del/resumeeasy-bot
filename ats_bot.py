@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 DB_NAME = "resumeeasy.db"
 
-# Caches
+# Caches for reports and temporary data
 report_cache = {} 
 resume_cache = {}
 
@@ -169,6 +169,20 @@ def analyze_part(resume_text, part_name, timeout=60, custom_prompt=None, job_des
 Резюме:
 {resume_text[:4000]}""",
         
+        "job_match": f"""Сравни резюме с вакансией. Верни СТРОГО JSON:
+{{
+  "match_percent": 0-100,
+  "missing_skills": ["skill1", "skill2"],
+  "recommendations": ["rec1", "rec2"],
+  "summary": "Краткий итог на 2 предложения"
+}}
+
+Резюме:
+{resume_text[:2000]}
+
+Вакансия:
+{job_desc[:2000]}""",
+
         "cover_letter": f"""Ты — старший HR-рекрутер. Напиши короткое, ударное сопроводительное письмо для hh.ru.
 Требования:
 - 5-10 предложений.
@@ -237,7 +251,9 @@ def show_post_upload_menu(chat_id):
     }
     send_message(chat_id, "✅ <b>Резюме загружено!</b>\nНажми «Получить отчет» для полного анализа.", reply_markup=kb)
 
-# --- WEB REPORT TEMPLATE ---
+# --- WEB REPORT TEMPLATES ---
+
+# 1. Full Resume Report Template
 REPORT_HTML = """
 <!DOCTYPE html>
 <html lang="ru">
@@ -315,6 +331,104 @@ REPORT_HTML = """
 </html>
 """
 
+# 2. Job Match Report Template
+MATCH_HTML = """
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Match Report</title>
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; background: #1e1e1e; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        h1 { color: #ffffff; border-bottom: 2px solid #333; padding-bottom: 15px; margin-top: 0; font-size: 24px; }
+        h2 { color: #bb86fc; margin-top: 30px; font-size: 18px; border-left: 4px solid #bb86fc; padding-left: 10px; }
+        .score-card { background: #2c2c2c; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
+        .score-val { font-size: 48px; font-weight: bold; color: #03dac6; }
+        .score-label { font-size: 16px; color: #aaa; margin-top: 5px; }
+        .list-item { background: #252525; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #cf6679; }
+        .rec-item { background: #252525; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #03dac6; }
+        .summary { background: #333; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-style: italic; }
+        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Job Match Analysis</h1>
+        <p style="color: #888">Generated on {{ date }}</p>
+
+        <div class="score-card">
+            <div class="score-val">{{ match }}/100</div>
+            <div class="score-label">Совпадение с вакансией</div>
+        </div>
+
+        <div class="summary">
+            {{ summary }}
+        </div>
+
+        <h2>❌ Недостающие навыки</h2>
+        {% for skill in missing %}
+        <div class="list-item">• {{ skill }}</div>
+        {% endfor %}
+
+        <h2>💡 Рекомендации по улучшению</h2>
+        {% for rec in recs %}
+        <div class="rec-item">• {{ rec }}</div>
+        {% endfor %}
+
+        <div class="footer">
+            Powered by ResumeEasy Bot
+        </div>
+    </div>
+</body>
+</html>
+"""
+
+# 3. Cover Letter Template
+COVER_HTML = """
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cover Letter</title>
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; background: #1e1e1e; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        h1 { color: #ffffff; border-bottom: 2px solid #333; padding-bottom: 15px; margin-top: 0; font-size: 24px; }
+        .letter-content { white-space: pre-wrap; background: #252525; padding: 20px; border-radius: 8px; font-size: 16px; line-height: 1.8; border: 1px solid #333; }
+        .btn-copy { display: block; width: 100%; padding: 15px; background: #03dac6; color: #000; text-align: center; text-decoration: none; font-weight: bold; border-radius: 8px; margin-top: 20px; cursor: pointer; border: none; font-size: 16px; }
+        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 Сопроводительное письмо</h1>
+        <p style="color: #888">Готово к отправке на hh.ru</p>
+
+        <div class="letter-content" id="letterText">{{ letter }}</div>
+
+        <button class="btn-copy" onclick="copyText()">📋 Скопировать текст</button>
+
+        <div class="footer">
+            Powered by ResumeEasy Bot
+        </div>
+    </div>
+    <script>
+        function copyText() {
+            var text = document.getElementById("letterText").innerText;
+            navigator.clipboard.writeText(text).then(function() {
+                alert("Текст скопирован!");
+            }, function(err) {
+                console.error('Could not copy text: ', err);
+            });
+        }
+    </script>
+</body>
+</html>
+"""
+
 # --- ROUTES ---
 
 @app.route('/report/<report_id>')
@@ -323,14 +437,21 @@ def view_report(report_id):
     if not data:
         return "<h1 style='color:white'>Report expired</h1>", 404
     
-    return render_template_string(REPORT_HTML, **data)
+    if data.get('type') == 'full':
+        return render_template_string(REPORT_HTML, **data)
+    elif data.get('type') == 'match':
+        return render_template_string(MATCH_HTML, **data)
+    elif data.get('type') == 'cover':
+        return render_template_string(COVER_HTML, **data)
+    
+    return "<h1 style='color:white'>Unknown report type</h1>", 404
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
     chat_id = None
     try:
         data = request.get_json()
-        if not data or 'message' not in data:
+        if not data or 'message' not in 
             return 'ok', 200
         
         chat_id = data['message']['chat']['id']
@@ -431,23 +552,29 @@ def webhook():
             rtext = resume_cache[chat_id]
             send_message(chat_id, "🔍 Сравниваю с вакансией... ⏳")
             
-            # Fixed JSON braces
-            prompt = f"""Сравни резюме с вакансией. Верни JSON:
-{{"match_percent": 0-100, "missing_skills": ["skill1"], "recommendations": ["rec1"]}}
-Резюме:
-{rtext[:2000]}
-Вакансия:
-{job_desc}"""
-            res = analyze_part(rtext, "custom", custom_prompt=prompt, timeout=40)
+            res = analyze_part(rtext, "job_match", timeout=40, job_desc=job_desc)
             d = extract_json(res)
+            
             if d and isinstance(d, dict):
-                out = (f"🎯 <b>СОВПАДЕНИЕ</b>\n"
-                       f"📊 {d.get('match_percent','?')}/100\n"
-                       f"❌ <b>Не хватает</b>:\n" + "\n".join(f"• {s}" for s in d.get('missing_skills', [])) + "\n"
-                       f"💡 <b>Совет</b>:\n" + "\n".join(f"• {r}" for r in d.get('recommendations', [])))
+                report_id = str(uuid.uuid4())
+                report_data = {
+                    'type': 'match',
+                    'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
+                    'match': d.get('match_percent', 0),
+                    'missing': d.get('missing_skills', []),
+                    'recs': d.get('recommendations', []),
+                    'summary': d.get('summary', '')
+                }
+                report_cache[report_id] = report_data
+                
+                domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
+                report_url = f"{domain}/report/{report_id}"
+                
+                kb = {"inline_keyboard": [[{"text": "🌐 Открыть отчет сравнения", "url": report_url}]]}
+                send_message(chat_id, f"✅ <b>Сравнение готово!</b>\nНажми кнопку ниже, чтобы увидеть детальный разбор.", reply_markup=kb)
             else:
-                out = "❌ Не удалось сравнить. Попробуй еще раз."
-            send_message(chat_id, out)
+                send_message(chat_id, "❌ Не удалось сравнить. Попробуй еще раз.")
+            
             resume_cache[f"{chat_id}_mode"] = None
             return 'ok', 200
 
@@ -459,9 +586,25 @@ def webhook():
             
             send_message(chat_id, "📝 Генерирую сопроводительное письмо... ⏳")
             rtext = resume_cache[chat_id]
+            
+            # Check if we have a job description from previous step? 
+            # For now, let's generate generic or ask for job desc if not present
+            # To keep it simple, we'll generate a generic one based on resume
             res = analyze_part(rtext, "cover_letter", timeout=40)
+            
             if res:
-                send_message(chat_id, f"<b>Ваше сопроводительное письмо:</b>\n\n{res}")
+                report_id = str(uuid.uuid4())
+                report_data = {
+                    'type': 'cover',
+                    'letter': res
+                }
+                report_cache[report_id] = report_data
+                
+                domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
+                report_url = f"{domain}/report/{report_id}"
+                
+                kb = {"inline_keyboard": [[{"text": "🌐 Открыть письмо", "url": report_url}]]}
+                send_message(chat_id, f"✅ <b>Письмо готово!</b>\nНажми кнопку ниже, чтобы открыть и скопировать текст.", reply_markup=kb)
             else:
                 send_message(chat_id, "❌ Ошибка генерации")
             return 'ok', 200
@@ -488,6 +631,7 @@ def webhook():
             # Prepare Data for Web
             report_id = str(uuid.uuid4())
             report_data = {
+                'type': 'full',
                 'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
                 'overall': d.get('overall_score', 0),
                 'ats': d.get('ats_score', 0),
