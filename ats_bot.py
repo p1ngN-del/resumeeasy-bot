@@ -208,7 +208,7 @@ def show_analysis_menu(chat_id):
             ["💪 Сильные стороны", "⚠️ Слабые стороны"], 
             ["🔑 Ключевые слова", "💡 Советы (Было→Стало)"], 
             ["🎯 Вердикт", "✨ Переписать резюме"], 
-            ["🌐 Веб-отчет (Cyberpunk)", "📄 Новое резюме"], 
+            ["🌐 Открыть отчет", "📄 Новое резюме"], 
             ["⬅️ Назад в меню"]
         ],
         "resize_keyboard": True
@@ -544,13 +544,13 @@ def webhook():
             return 'ok', 200
 
         # --- WEB REPORT GENERATION ---
-        if text == '🌐 Веб-отчет (Cyberpunk)':
+        if text == '🌐 Открыть отчет':
             rtext = resume_cache.get(chat_id)
             if not rtext:
                 send_message(chat_id, "❌ Сначала загрузи резюме")
                 return 'ok', 200
             
-            send_message(chat_id, "🎨 Создаю киберпанк-отчет... ⏳")
+            send_message(chat_id, "🎨 Создаю отчет... ⏳")
             
             # Parallel-ish calls for speed
             ats_r = analyze_part(rtext, "ats_score", timeout=30)
