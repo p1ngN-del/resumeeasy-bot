@@ -165,14 +165,14 @@ REPORT_HTML = """
                 if (data.redirect) {
                     window.location.href = data.redirect;
                 } else {
-                    document.getElementById('improvedText').innerText = data.text || 'Ошибка';
-                    document.getElementById('improvedResume').style.display = 'block';
-                    document.getElementById('genBtn').innerText = '✅ Готово!';
+                    alert('Ошибка: ' + (data.error || 'Неизвестная ошибка'));
+                    document.getElementById('genBtn').innerText = '✨ Сгенерировать улучшенное резюме';
                     document.getElementById('genBtn').disabled = false;
                 }
             })
-            .catch(() => {
-                document.getElementById('genBtn').innerText = '❌ Ошибка';
+            .catch(err => {
+                alert('Ошибка соединения: ' + err);
+                document.getElementById('genBtn').innerText = '✨ Сгенерировать улучшенное резюме';
                 document.getElementById('genBtn').disabled = false;
             });
         }
