@@ -95,7 +95,6 @@ def send_welcome_video(chat_id, caption):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendVideo"
     video_path = "welcome.mp4"
     
-    # Проверяем, существует ли файл локально (на Railway он будет)
     if not os.path.exists(video_path):
         logger.warning("Welcome video not found, sending text only.")
         send_message(chat_id, caption)
@@ -108,17 +107,19 @@ def send_welcome_video(chat_id, caption):
             requests.post(url, files=files, data=data, timeout=60)
     except Exception as e:
         logger.error(f"Video send error: {e}")
-        # Если видео не загрузилось, отправим только текст
         send_message(chat_id, caption)
 
 def extract_json(text):
     text = re.sub(r'```json\s*|\s*```', '', text).strip()
-    try: return json.loads(text)
+    try: 
+        return json.loads(text)
     except:
         m = re.search(r'\{.*\}', text, re.DOTALL)
         if m:
-            try: return json.loads(m.group())
-            except: pass
+            try: 
+                return json.loads(m.group())
+            except: 
+                pass
     return None
 
 def extract_text_from_pdf(file_bytes):
@@ -136,14 +137,15 @@ def get_level(score):
         if s >= 75: return "⭐ Профи"
         if s >= 60: return "🚀 В процессе"
         return "🌱 Новичок"
-    except: return "🌱 Новичок"
+    except: 
+        return "🌱 Новичок"
 
 # --- AI ANALYSIS ---
 def analyze_part(resume_text, part_name, timeout=60, custom_prompt=None, job_desc=None):
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     
-    # --- PROMPTS ---
+    # Prompts with fixed JSON braces {{ }}
     prompts = {
         "full_report": f"""Ты — старший HR-рекрутер и эксперт по ATS с 10+ лет опыта в России.
 Проанализируй резюме и верни СТРОГО JSON объект со следующей структурой:
@@ -206,7 +208,6 @@ def show_start_menu(chat_id):
         ],
         "resize_keyboard": True
     }
-    # Текст приветствия
     welcome_text = (
         "🤖 <b>Добро пожаловать в ResumeEasy!</b>\n\n"
         "Рынок труда в 2026 году изменился:\n"
@@ -221,7 +222,6 @@ def show_start_menu(chat_id):
     )
     
     send_welcome_video(chat_id, welcome_text)
-    # Отправляем меню отдельным сообщением, чтобы оно не перекрывало видео
     time.sleep(1) 
     send_message(chat_id, "👇 <b>Выберите действие:</b>", reply_markup=kb)
 
@@ -237,7 +237,7 @@ def show_post_upload_menu(chat_id):
     }
     send_message(chat_id, "✅ <b>Резюме загружено!</b>\nНажми «Получить отчет» для полного анализа.", reply_markup=kb)
 
-# --- WEB REPORT TEMPLATE (PROFESSIONAL DARK) ---
+# --- WEB REPORT TEMPLATE ---
 REPORT_HTML = """
 <!DOCTYPE html>
 <html lang="ru">
@@ -320,7 +320,7 @@ REPORT_HTML = """
 @app.route('/report/<report_id>')
 def view_report(report_id):
     data = report_cache.get(report_id)
-    if not 
+    if not data:
         return "<h1 style='color:white'>Report expired</h1>", 404
     
     return render_template_string(REPORT_HTML, **data)
@@ -330,7 +330,7 @@ def webhook():
     chat_id = None
     try:
         data = request.get_json()
-        if not data or 'message' not in 
+        if not data or 'message' not in data:
             return 'ok', 200
         
         chat_id = data['message']['chat']['id']
@@ -372,7 +372,8 @@ def webhook():
             return 'ok', 200
 
         if text.startswith('/admin_hist '):
-            if chat_id not in ADMIN_IDS: return 'ok', 200
+            if chat_id not in ADMIN_IDS: 
+                return 'ok', 200
             target_id = text.split()[1]
             hist = get_user_history(int(target_id), 5)
             if not hist:
@@ -430,7 +431,7 @@ def webhook():
             rtext = resume_cache[chat_id]
             send_message(chat_id, "🔍 Сравниваю с вакансией... ⏳")
             
-            # FIXED: Double curly braces for JSON inside f-string
+            # Fixed JSON braces
             prompt = f"""Сравни резюме с вакансией. Верни JSON:
 {{"match_percent": 0-100, "missing_skills": ["skill1"], "recommendations": ["rec1"]}}
 Резюме:
@@ -511,14 +512,17 @@ def webhook():
 
     except Exception as e:
         logger.error(f"Crash: {e}", exc_info=True)
-        if chat_id: send_message(chat_id, f"❌ Ошибка: {str(e)[:100]}")
+        if chat_id: 
+            send_message(chat_id, f"❌ Ошибка: {str(e)[:100]}")
         return 'error', 500
 
 @app.route('/', methods=['GET','HEAD'])
-def index(): return '✅ Online', 200
+def index(): 
+    return '✅ Online', 200
 
 @app.route('/health')
-def health(): return {"status":"ok"}, 200
+def health(): 
+    return {"status":"ok"}, 200
 
 if __name__ != "__main__":
     init_db()
