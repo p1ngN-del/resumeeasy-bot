@@ -90,6 +90,15 @@ def send_message(chat_id, text, reply_markup=None, parse_mode="HTML"):
         except Exception as e:
             logger.error(f"Send error: {e}")
 
+def clean_markdown(text):
+    """Убирает Markdown-разметку из текста"""
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)  # **жирный**
+    text = re.sub(r'\*(.*?)\*', r'\1', text)        # *курсив*
+    text = re.sub(r'___(.*?)___', r'\1', text)      # ___жирный курсив___
+    text = re.sub(r'__(.*?)__', r'\1', text)        # __жирный__
+    text = re.sub(r'_(.*?)_', r'\1', text)          # _курсив_
+    return text
+
 def send_welcome_video(chat_id, caption):
     """Отправляет приветственное видео с подписью"""
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendVideo"
@@ -193,6 +202,7 @@ def analyze_part(resume_text, part_name, timeout=60, custom_prompt=None, job_des
 - Живой язык, без штампов.
 - В конце: контакты.
 - НЕ пиши "Резюме прилагаю".
+- НЕ используй Markdown-разметку (звездочки, решетки и т.д.), только чистый текст.
 
 Резюме:
 {resume_text[:3000]}
