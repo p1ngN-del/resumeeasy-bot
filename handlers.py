@@ -3,6 +3,7 @@ import uuid
 import io
 import csv
 import re
+import json
 import requests as req
 from datetime import datetime, timedelta
 from flask import request, render_template_string, Response
@@ -28,9 +29,7 @@ def extract_text_from_pdf(file_bytes):
                     text += page_text + "\n"
                 else:
                     logger.warning(f"PDF page {i+1} returned no text")
-        # Логируем первые 500 символов и длину
         logger.info(f"PDF extracted: {len(text)} chars. Preview: {text[:200]}...")
-        # Проверяем наличие ключевых разделов
         sections = ["образование", "навыки", "опыт работы", "обо мне", "контакты"]
         for s in sections:
             if s.lower() in text.lower():
@@ -101,7 +100,19 @@ def register_routes(app):
     def view_improved(improved_id):
         data = report_cache.get(improved_id)
         if not data:
-            return "<h1 style='color:white;font-family:sans-serif;text-align:center;margin-top:50px'>Срок действия истёк 😢</h1>", 404
+            # Пробуем найти в БД
+            try:
+                conn = get_db()
+                c = conn.cursor()
+                c.execute("SELECT resume_text, ats_score, overall_score FROM analyses WHERE analysis_type='improved' AND resume_text LIKE %s ORDER BY id DESC LIMIT 1", (f'%{improved_id}%',))
+                row = c.fetchone()
+                conn.close()
+                if row:
+                    data = {'type': 'improved', 'blocks': [], 'summary': 'Загружено из БД', 'overall': row[2] or 0, 'ats': row[1] or 0}
+                    return render_template_string(IMPROVED_HTML, **data, report_id=improved_id)
+            except Exception as e:
+                logger.error(f"DB lookup for improved failed: {e}")
+            return "<h1 style='color:white;font-family:sans-serif;text-align:center;margin-top:50px'>Срок действия истёк 😢<br><small>Сгенерируйте заново</small></h1>", 404
         return render_template_string(IMPROVED_HTML, **data, report_id=improved_id)
 
     @app.route('/api/improve', methods=['POST'])
@@ -109,15 +120,32 @@ def register_routes(app):
         data = request.get_json()
         report_id = data.get('report_id')
         fixes = data.get('fixes', [])
-        report = report_cache.get(report_id)
-        if not report:
-            return {"redirect": None, "error": "Report expired"}
         
-        user_id = report.get('user_id')
-        resume_text = resume_cache.get(user_id) or get_last_analysis_text(user_id)
+        # Пробуем получить из кэша
+        report = report_cache.get(report_id)
+        user_id = None
+        resume_text = None
+        
+        if report:
+            user_id = report.get('user_id')
+            resume_text = resume_cache.get(user_id)
+        
+        # Если нет в кэше — ищем в БД
+        if not resume_text:
+            try:
+                conn = get_db()
+                c = conn.cursor()
+                c.execute("SELECT user_id, resume_text FROM analyses WHERE analysis_type='full_report' ORDER BY id DESC LIMIT 1")
+                row = c.fetchone()
+                conn.close()
+                if row:
+                    user_id = row[0]
+                    resume_text = row[1]
+            except Exception as e:
+                logger.error(f"DB lookup error: {e}")
         
         if not resume_text:
-            return {"redirect": None, "error": "No resume text found"}
+            return {"redirect": None, "error": "Не могу найти текст резюме. Загрузите резюме заново и нажмите «Получить отчет»."}
         
         logger.info(f"Improving resume for user {user_id}, text length: {len(resume_text)} chars")
         
@@ -125,22 +153,9 @@ def register_routes(app):
         
         custom_prompt = f"""Ты — эксперт по улучшению резюме. Примени указанные правки и верни СТРОГО JSON (без Markdown-разметки):
 
-{{{{
-  "blocks": [
-    {{{{"title": "Заголовок", "old_text": "исходный текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}}},
-    {{{{"title": "Контакты", "old_text": "исходный текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}}},
-    {{{{"title": "Опыт работы", "old_text": "исходный текст", "new_text": "улучшенный текст с метриками", "changes": "какие правки применены"}}}},
-    {{{{"title": "Навыки", "old_text": "исходный текст", "new_text": "улучшенный с ключевыми словами", "changes": "какие навыки добавлены"}}}},
-    {{{{"title": "Образование и сертификаты", "old_text": "исходный текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}}},
-    {{{{"title": "Обо мне", "old_text": "исходный текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}}}
-  ],
-  "summary": "Краткий итог улучшений",
-  "overall_score": 0,
-  "ats_score": 0
-}}}}
+{{"blocks": [{{"title": "Заголовок", "old_text": "текст", "new_text": "улучшенный текст", "changes": "что изменилось"}}, {{"title": "Контакты", "old_text": "текст", "new_text": "текст", "changes": ""}}, {{"title": "Опыт работы", "old_text": "текст", "new_text": "улучшенный с метриками", "changes": "правки"}}, {{"title": "Навыки", "old_text": "текст", "new_text": "с ключевыми словами", "changes": "добавлены навыки"}}, {{"title": "Образование", "old_text": "текст", "new_text": "текст", "changes": ""}}, {{"title": "Обо мне", "old_text": "текст", "new_text": "улучшенный текст", "changes": ""}}], "summary": "Итог", "overall_score": 0, "ats_score": 0}}
 
-НЕ используй Markdown-разметку (звездочки, решетки). Только чистый текст.
-НЕ придумывай несуществующие разделы. old_text должен быть ТОЧНО из исходного резюме.
+НЕ используй Markdown. Только чистый текст.
 
 Правки для применения:
 {fixes_text}
@@ -148,20 +163,17 @@ def register_routes(app):
 Исходное резюме:
 {resume_text[:4000]}
 
-Верни ПОЛНЫЙ JSON со ВСЕМИ блоками. Если блока нет в резюме — old_text оставь пустым."""
+Верни ПОЛНЫЙ JSON со ВСЕМИ блоками."""
         
         result = analyze_part("", "", custom_prompt=custom_prompt, timeout=90)
         
         if not result:
-            logger.error("AI returned empty result for improve")
-            return {"redirect": None, "error": "AI generation failed"}
-        
-        logger.info(f"AI improve result preview: {result[:200]}...")
+            return {"redirect": None, "error": "AI не ответил. Попробуйте ещё раз."}
         
         d = extract_json(result)
         if not d or 'blocks' not in d:
-            logger.error(f"Failed to parse AI improve result: {result[:300]}")
-            return {"redirect": None, "error": "Failed to parse AI response"}
+            logger.error(f"Failed to parse: {result[:300]}")
+            return {"redirect": None, "error": "Не удалось разобрать ответ AI."}
         
         improved_id = str(uuid.uuid4())
         report_cache[improved_id] = {
@@ -175,7 +187,14 @@ def register_routes(app):
             'user_id': user_id
         }
         
-        logger.info(f"Improved resume created: {improved_id}")
+        # Сохраняем в БД
+        try:
+            if user_id:
+                save_analysis(user_id, json.dumps(d.get('blocks', []))[:500], 
+                            d.get('ats_score', 0), d.get('overall_score', 0), "improved")
+        except Exception as e:
+            logger.error(f"Failed to save improved to DB: {e}")
+        
         return {"redirect": f"/improved/{improved_id}"}
 
     @app.route('/admin')
@@ -390,8 +409,9 @@ def register_routes(app):
                 d = extract_json(res)
                 if not d: send_message(chat_id, "❌ Не удалось сформировать отчет."); return 'ok', 200
                 logger.info(f"Report generated for user {chat_id}: ATS={d.get('ats_score')}, Overall={d.get('overall_score')}")
-                save_analysis(chat_id, rtext, d.get('ats_score', 0), d.get('overall_score', 0), "full_report")
                 report_id = str(uuid.uuid4())
+                # Сохраняем в БД с report_id
+                save_analysis(chat_id, rtext[:500] + f"\n[report_id:{report_id}]", d.get('ats_score', 0), d.get('overall_score', 0), "full_report")
                 report_cache[report_id] = {
                     'type': 'full', 'user_id': chat_id,
                     'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
