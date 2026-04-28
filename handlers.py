@@ -170,7 +170,7 @@ def register_routes(app):
         logger.info(f"Applying fixes to blocks: {affected_blocks}")
         fixes_text = "\n".join([f"- [{f['title']}] {f['desc']}" for f in fixes])
         
-                custom_prompt = f"""Ты — эксперт по улучшению резюме. Скопируй КАЖДЫЙ блок из исходного резюме ПОЛНОСТЬЮ в old_text. Затем примени правки и запиши ПОЛНЫЙ улучшенный текст в new_text.
+        custom_prompt = f"""Ты — эксперт по улучшению резюме. Скопируй КАЖДЫЙ блок из исходного резюме ПОЛНОСТЬЮ в old_text. Затем примени правки и запиши ПОЛНЫЙ улучшенный текст в new_text.
 
 ИЗМЕНИ ТОЛЬКО указанные блоки: {', '.join(affected_blocks)}. Остальные блоки: new_text = old_text (без изменений).
 
