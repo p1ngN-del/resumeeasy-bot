@@ -265,79 +265,81 @@ IMPROVED_HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Improved Resume</title>
+    <title>Улучшенное резюме</title>
     <style>
-        body { background-color: #121212; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
-        .container { max-width: 900px; margin: 0 auto; }
-        h1 { color: #ffffff; text-align: center; margin-bottom: 5px; }
-        .subtitle { text-align: center; color: #888; margin-bottom: 25px; }
-        .block { background: #1e1e1e; padding: 20px; border-radius: 10px; margin-bottom: 20px; border: 1px solid #333; }
-        .block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .block-title { color: #bb86fc; font-size: 18px; font-weight: bold; }
-        .block-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
-        .badge-changed { background: #03dac6; color: #000; }
-        .badge-unchanged { background: #333; color: #888; }
-        .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
-        .compare-col { background: #252525; padding: 15px; border-radius: 8px; }
-        .compare-col h4 { color: #888; margin-top: 0; font-size: 12px; text-transform: uppercase; }
-        .old-text { color: #cf6679; white-space: pre-wrap; font-size: 14px; }
-        .new-text { color: #03dac6; white-space: pre-wrap; font-size: 14px; }
-        .changes-note { background: #1a1a2e; padding: 10px; border-radius: 6px; margin-top: 10px; font-size: 13px; color: #ffb74d; }
-        .btn-row { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-        .btn { padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; font-size: 14px; text-decoration: none; display: inline-block; text-align: center; }
-        .btn-primary { background: #bb86fc; color: #000; flex: 1; }
-        .btn-secondary { background: #03dac6; color: #000; }
-        .btn-copy { background: #333; color: #fff; padding: 6px 12px; border-radius: 4px; border: none; cursor: pointer; font-size: 12px; }
-        .summary-box { background: #1a1a2e; border: 1px solid #bb86fc; padding: 20px; border-radius: 10px; text-align: center; margin-bottom: 20px; }
-        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+        body { background: #0a0a0f; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 24px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #fff; font-size: 1.8rem; text-align: center; margin-bottom: 8px; }
+        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 30px; }
+        
+        .scores { display: flex; gap: 16px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap; }
+        .score { background: #12121a; border: 1px solid #1e1e2e; border-radius: 12px; padding: 16px 24px; text-align: center; min-width: 100px; }
+        .score .val { font-size: 2rem; font-weight: 800; color: #22d3ee; }
+        .score .lbl { font-size: 0.8rem; color: #94a3b8; }
+        
+        .block { background: #12121a; border: 1px solid #1e1e2e; border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
+        .block-title { color: #a78bfa; font-weight: 700; font-size: 1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .block-title .icon { font-size: 1.2rem; }
+        .block-text { white-space: pre-wrap; color: #e2e8f0; font-size: 0.95rem; }
+        
+        .summary-box { background: #1a1a2e; border: 1px solid #a78bfa; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center; }
+        .summary-box p { margin: 0; color: #ffb74d; }
+        
+        .btn-copy { background: #22d3ee; color: #000; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem; margin-top: 8px; }
+        .btn-copy:hover { opacity: 0.9; }
+        
+        .footer { text-align: center; color: #64748b; font-size: 0.8rem; margin-top: 40px; }
+        
+        @media (max-width: 600px) {
+            body { padding: 16px; }
+            .block { padding: 14px 16px; }
+            .scores { gap: 10px; }
+            .score { padding: 12px 16px; }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>✨ Улучшенное резюме</h1>
         <p class="subtitle">{{ date }}</p>
-
-        <div class="summary-box">
-            <p style="color:#ffb74d; font-size:16px; margin:0;">{{ summary }}</p>
+        
+        <div class="scores">
+            <div class="score"><div class="val">{{ overall }}/100</div><div class="lbl">Общая оценка</div></div>
+            <div class="score"><div class="val" style="color:#a78bfa">{{ ats }}/100</div><div class="lbl">ATS Score</div></div>
         </div>
-
+        
+        {% if summary %}
+        <div class="summary-box"><p>💡 {{ summary }}</p></div>
+        {% endif %}
+        
         {% for block in blocks %}
         <div class="block">
-            <div class="block-header">
-                <span class="block-title">{{ block.title }}</span>
-                <span class="block-badge {% if block.old_text != block.new_text %}badge-changed{% else %}badge-unchanged{% endif %}">
-                    {% if block.old_text != block.new_text %}ИЗМЕНЕНО{% else %}БЕЗ ИЗМЕНЕНИЙ{% endif %}
+            <div class="block-title">
+                <span class="icon">
+                    {% if 'заголовок' in block.title.lower() or 'контакт' in block.title.lower() %}👤
+                    {% elif 'должност' in block.title.lower() %}💼
+                    {% elif 'опыт' in block.title.lower() %}📋
+                    {% elif 'образование' in block.title.lower() %}🎓
+                    {% elif 'навык' in block.title.lower() %}🔧
+                    {% elif 'обо мне' in block.title.lower() %}📝
+                    {% else %}📄{% endif %}
                 </span>
+                {{ block.title }}
             </div>
-            <div class="compare-grid">
-                <div class="compare-col">
-                    <h4>📄 Было</h4>
-                    <div class="old-text">{{ block.old_text or '(отсутствовало)' }}</div>
-                </div>
-                <div class="compare-col">
-                    <h4>✅ Стало</h4>
-                    <div class="new-text">{{ block.new_text }}</div>
-                    <button class="btn-copy" onclick="copyBlock(this)" data-text="{{ block.new_text }}">📋 Копировать</button>
-                </div>
-            </div>
-            {% if block.changes %}
-            <div class="changes-note">💡 {{ block.changes }}</div>
-            {% endif %}
+            <div class="block-text">{{ block.text or '(нет данных)' }}</div>
+            <button class="btn-copy" onclick="copyBlock(this)" data-text="{{ block.text }}">📋 Копировать</button>
         </div>
         {% endfor %}
-
-        <div class="btn-row">
-            <a href="/api/recheck/{{ report_id }}" class="btn btn-secondary">🔄 Проверить новое резюме</a>
-        </div>
-
-        <div class="footer">Powered by ResumeEasy Bot</div>
+        
+        <div class="footer">ResumeEasy — ваш персональный ATS-эксперт</div>
     </div>
+    
     <script>
         function copyBlock(btn) {
             navigator.clipboard.writeText(btn.getAttribute('data-text'))
                 .then(() => {
                     btn.innerText = '✅ Скопировано!';
-                    setTimeout(() => btn.innerText = '📋 Копировать', 2000);
+                    setTimeout(() => btn.innerText = '📋 Копировать', 1500);
                 });
         }
     </script>
