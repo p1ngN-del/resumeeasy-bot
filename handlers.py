@@ -148,45 +148,35 @@ def register_routes(app):
         
         logger.info(f"Improving resume, text length: {len(resume_text)} chars")
         
-        # Определяем затронутые блоки и вырезаем их из резюме
-        affected_blocks = set()
-        for fix in fixes:
-            combined = (fix.get('title', '') + ' ' + fix.get('desc', '')).lower()
-            if any(w in combined for w in ['заголовок', 'контакт', 'телефон', 'почта']):
-                affected_blocks.add("Заголовок и контакты")
-            if any(w in combined for w in ['опыт', 'работа', 'должность', 'метрик', 'цифр', 'процент', 'увелич', 'сократил', 'бюджет']):
-                affected_blocks.add("Опыт работы")
-            if any(w in combined for w in ['навык', 'ключевые слова']):
-                affected_blocks.add("Навыки")
-            if any(w in combined for w in ['образование', 'вуз', 'университет', 'курс']):
-                affected_blocks.add("Образование")
-            if any(w in combined for w in ['обо мне', 'о себе', 'стиль', 'канцеляр', 'вода']):
-                affected_blocks.add("Обо мне")
-        
-        if not affected_blocks:
-            affected_blocks = {"Заголовок и контакты", "Опыт работы", "Навыки", "Образование", "Обо мне"}
-        
-        logger.info(f"Affected blocks: {affected_blocks}")
         fixes_text = "\n".join([f"- {f['title']}: {f['desc']}" for f in fixes])
         
-        # AI генерирует ТОЛЬКО улучшения (без old_text — мы вставим сами)
-        custom_prompt = f"""Улучши ТОЛЬКО эти блоки резюме: {', '.join(affected_blocks)}.
-Для каждого блока напиши УЛУЧШЕННЫЙ текст (new_text) и что изменилось (changes).
-Остальные блоки НЕ МЕНЯЙ.
+        custom_prompt = f"""Улучши резюме по указанным правкам. Верни СТРОГО JSON с блоками:
 
-Верни СТРОГО JSON:
-{{"blocks": [{{"title": "Заголовок и контакты", "new_text": "текст", "changes": ""}}, {{"title": "Опыт работы", "new_text": "текст", "changes": ""}}, {{"title": "Навыки", "new_text": "текст", "changes": ""}}, {{"title": "Образование", "new_text": "текст", "changes": ""}}, {{"title": "Обо мне", "new_text": "текст", "changes": ""}}], "summary": "Итог", "overall_score": 0, "ats_score": 0}}
+{{
+  "blocks": [
+    {{"title": "Заголовок и контакты", "text": "ФИО, телефон, email, город — без изменений"}},
+    {{"title": "Желаемая должность", "text": "должность и зарплатные ожидания"}},
+    {{"title": "Опыт работы", "text": "полный улучшенный текст опыта работы"}},
+    {{"title": "Образование", "text": "образование"}},
+    {{"title": "Навыки", "text": "навыки — сгруппированы по категориям"}},
+    {{"title": "Обо мне", "text": "дополнительная информация — улучшенный текст"}}
+  ],
+  "summary": "Краткий итог: что улучшено",
+  "overall_score": 0,
+  "ats_score": 0
+}}
 
 СМЕРТЕЛЬНЫЕ ПРАВИЛА:
-- НЕ придумывай компании, вузы, имена, цифры. Только то, что ЕСТЬ в резюме.
+- НЕ придумывай компании, вузы, имена, цифры, должности. ТОЛЬКО то, что ЕСТЬ в резюме.
+- НЕ меняй контакты, телефон, email — оставь как есть.
 - НЕ используй Markdown.
-- Для блоков НЕ из списка {', '.join(affected_blocks)} — верни текст БЕЗ ИЗМЕНЕНИЙ.
+- Каждый блок должен содержать ПОЛНЫЙ текст раздела.
 
 Правки:
 {fixes_text}
 
-Резюме:
-{resume_text[:4000]}
+ВСЁ РЕЗЮМЕ:
+{resume_text}
 
 JSON:"""
         
@@ -199,10 +189,6 @@ JSON:"""
         if not d or 'blocks' not in d:
             logger.error(f"Failed to parse: {result[:300]}")
             return {"redirect": None, "error": "Не удалось разобрать ответ."}
-        
-        # Вставляем old_text из исходного резюме (сами, без AI)
-        for block in d['blocks']:
-            block['old_text'] = resume_text[:3000]  # полный текст резюме как old_text
         
         improved_id = str(uuid.uuid4())
         report_cache[improved_id] = {
