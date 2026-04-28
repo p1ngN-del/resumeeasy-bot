@@ -267,34 +267,39 @@ IMPROVED_HTML = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Улучшенное резюме</title>
     <style>
-        body { background: #0a0a0f; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 24px; line-height: 1.6; }
+        :root { --bg: #0a0a0f; --card: #12121a; --bdr: #1e1e2e; --purple: #a78bfa; --cyan: #22d3ee; --text: #e2e8f0; --muted: #94a3b8; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; line-height: 1.6; }
         .container { max-width: 800px; margin: 0 auto; }
-        h1 { color: #fff; font-size: 1.8rem; text-align: center; margin-bottom: 8px; }
-        .subtitle { text-align: center; color: #94a3b8; margin-bottom: 30px; }
+        h1 { color: #fff; font-size: 1.8rem; text-align: center; margin-bottom: 4px; }
+        .subtitle { text-align: center; color: var(--muted); margin-bottom: 24px; font-size: 0.9rem; }
         
-        .scores { display: flex; gap: 16px; justify-content: center; margin-bottom: 30px; flex-wrap: wrap; }
-        .score { background: #12121a; border: 1px solid #1e1e2e; border-radius: 12px; padding: 16px 24px; text-align: center; min-width: 100px; }
-        .score .val { font-size: 2rem; font-weight: 800; color: #22d3ee; }
-        .score .lbl { font-size: 0.8rem; color: #94a3b8; }
+        .scores { display: flex; gap: 16px; justify-content: center; margin-bottom: 28px; }
+        .score { background: var(--card); border: 1px solid var(--bdr); border-radius: 12px; padding: 14px 22px; text-align: center; min-width: 90px; }
+        .score .val { font-size: 2rem; font-weight: 800; color: var(--cyan); }
+        .score .val.ats { color: var(--purple); }
+        .score .lbl { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
         
-        .block { background: #12121a; border: 1px solid #1e1e2e; border-radius: 12px; padding: 20px 24px; margin-bottom: 16px; }
-        .block-title { color: #a78bfa; font-weight: 700; font-size: 1rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-        .block-title .icon { font-size: 1.2rem; }
-        .block-text { white-space: pre-wrap; color: #e2e8f0; font-size: 0.95rem; }
+        .summary-box { background: #1a1a2e; border: 1px solid var(--purple); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; text-align: center; }
+        .summary-box p { margin: 0; color: #ffb74d; font-size: 0.95rem; }
         
-        .summary-box { background: #1a1a2e; border: 1px solid #a78bfa; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center; }
-        .summary-box p { margin: 0; color: #ffb74d; }
+        .block { background: var(--card); border: 1px solid var(--bdr); border-radius: 12px; padding: 18px 22px; margin-bottom: 14px; transition: border-color 0.2s; }
+        .block:hover { border-color: var(--purple); }
+        .block-title { color: var(--purple); font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .block-title .icon { font-size: 1.1rem; }
+        .block-text { white-space: pre-wrap; color: var(--text); font-size: 0.95rem; }
         
-        .btn-copy { background: #22d3ee; color: #000; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem; margin-top: 8px; }
-        .btn-copy:hover { opacity: 0.9; }
+        .btn-copy { background: var(--cyan); color: #000; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.8rem; margin-top: 10px; display: inline-block; }
+        .btn-copy:hover { opacity: 0.85; }
         
-        .footer { text-align: center; color: #64748b; font-size: 0.8rem; margin-top: 40px; }
+        .footer { text-align: center; color: #64748b; font-size: 0.78rem; margin-top: 36px; }
         
         @media (max-width: 600px) {
-            body { padding: 16px; }
+            body { padding: 14px; }
             .block { padding: 14px 16px; }
             .scores { gap: 10px; }
-            .score { padding: 12px 16px; }
+            .score { padding: 10px 14px; }
+            .score .val { font-size: 1.5rem; }
         }
     </style>
 </head>
@@ -305,7 +310,7 @@ IMPROVED_HTML = """
         
         <div class="scores">
             <div class="score"><div class="val">{{ overall }}/100</div><div class="lbl">Общая оценка</div></div>
-            <div class="score"><div class="val" style="color:#a78bfa">{{ ats }}/100</div><div class="lbl">ATS Score</div></div>
+            <div class="score"><div class="val ats">{{ ats }}/100</div><div class="lbl">ATS Score</div></div>
         </div>
         
         {% if summary %}
@@ -327,7 +332,7 @@ IMPROVED_HTML = """
                 {{ block.title }}
             </div>
             <div class="block-text">{{ block.text or '(нет данных)' }}</div>
-            <button class="btn-copy" onclick="copyBlock(this)" data-text="{{ block.text }}">📋 Копировать</button>
+            <button class="btn-copy" onclick="copyBlock(this)" data-text="{{ block.text }}">📋 Копировать блок</button>
         </div>
         {% endfor %}
         
@@ -339,13 +344,14 @@ IMPROVED_HTML = """
             navigator.clipboard.writeText(btn.getAttribute('data-text'))
                 .then(() => {
                     btn.innerText = '✅ Скопировано!';
-                    setTimeout(() => btn.innerText = '📋 Копировать', 1500);
+                    setTimeout(() => btn.innerText = '📋 Копировать блок', 1500);
                 });
         }
     </script>
 </body>
 </html>
 """
+
 
 ADMIN_HTML = """
 <!DOCTYPE html>
