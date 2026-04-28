@@ -139,71 +139,70 @@ def register_routes(app):
                     resume_text = row[1]
                     if len(resume_text) < 1000 and user_id in resume_cache:
                         resume_text = resume_cache[user_id]
-                        logger.info(f"Restored full text from cache: {len(resume_text)} chars")
                     resume_cache[user_id] = resume_text
             except Exception as e:
                 logger.error(f"DB lookup error: {e}")
         
         if not resume_text:
-            return {"redirect": None, "error": "Не могу найти текст резюме. Нажмите «Получить отчет» ещё раз."}
+            return {"redirect": None, "error": "Не могу найти текст резюме."}
         
-        logger.info(f"Improving resume for user {user_id}, text length: {len(resume_text)} chars")
+        logger.info(f"Improving resume, text length: {len(resume_text)} chars")
         
-        # Определяем затронутые блоки
+        # Определяем затронутые блоки и вырезаем их из резюме
         affected_blocks = set()
         for fix in fixes:
-            title = fix.get('title', '').lower()
-            desc = fix.get('desc', '').lower()
-            combined = title + ' ' + desc
-            
+            combined = (fix.get('title', '') + ' ' + fix.get('desc', '')).lower()
             if any(w in combined for w in ['заголовок', 'контакт', 'телефон', 'почта']):
                 affected_blocks.add("Заголовок и контакты")
             if any(w in combined for w in ['опыт', 'работа', 'должность', 'метрик', 'цифр', 'процент', 'увелич', 'сократил', 'бюджет']):
                 affected_blocks.add("Опыт работы")
-            if any(w in combined for w in ['навык', 'ключевые слова', 'hard skill', 'soft skill']):
+            if any(w in combined for w in ['навык', 'ключевые слова']):
                 affected_blocks.add("Навыки")
             if any(w in combined for w in ['образование', 'вуз', 'университет', 'курс']):
                 affected_blocks.add("Образование")
-            if any(w in combined for w in ['обо мне', 'о себе', 'стиль', 'язык', 'канцеляр', 'вода']):
+            if any(w in combined for w in ['обо мне', 'о себе', 'стиль', 'канцеляр', 'вода']):
                 affected_blocks.add("Обо мне")
         
         if not affected_blocks:
             affected_blocks = {"Заголовок и контакты", "Опыт работы", "Навыки", "Образование", "Обо мне"}
         
-        logger.info(f"Applying fixes to blocks: {affected_blocks}")
-        fixes_text = "\n".join([f"- [{f['title']}] {f['desc']}" for f in fixes])
+        logger.info(f"Affected blocks: {affected_blocks}")
+        fixes_text = "\n".join([f"- {f['title']}: {f['desc']}" for f in fixes])
         
-        custom_prompt = f"""Ты — эксперт по улучшению резюме. Скопируй КАЖДЫЙ блок из исходного резюме ПОЛНОСТЬЮ в old_text. Затем примени правки и запиши ПОЛНЫЙ улучшенный текст в new_text.
-
-ИЗМЕНИ ТОЛЬКО указанные блоки: {', '.join(affected_blocks)}. Остальные блоки: new_text = old_text (без изменений).
+        # AI генерирует ТОЛЬКО улучшения (без old_text — мы вставим сами)
+        custom_prompt = f"""Улучши ТОЛЬКО эти блоки резюме: {', '.join(affected_blocks)}.
+Для каждого блока напиши УЛУЧШЕННЫЙ текст (new_text) и что изменилось (changes).
+Остальные блоки НЕ МЕНЯЙ.
 
 Верни СТРОГО JSON:
-
-{{"blocks": [{{"title": "Заголовок и контакты", "old_text": "ПОЛНЫЙ исходный текст заголовка и контактов из резюме", "new_text": "ПОЛНЫЙ улучшенный текст заголовка и контактов", "changes": "одно предложение: что изменилось"}}, {{"title": "Опыт работы", "old_text": "ПОЛНЫЙ исходный текст всего опыта работы из резюме (все компании, все должности)", "new_text": "ПОЛНЫЙ улучшенный текст опыта работы", "changes": "одно предложение: что изменилось"}}, {{"title": "Навыки", "old_text": "ПОЛНЫЙ список всех навыков из резюме", "new_text": "ПОЛНЫЙ список навыков с улучшениями", "changes": "одно предложение: что изменилось"}}, {{"title": "Образование", "old_text": "ПОЛНЫЙ исходный текст образования из резюме", "new_text": "ПОЛНЫЙ улучшенный текст образования", "changes": "одно предложение: что изменилось"}}, {{"title": "Обо мне", "old_text": "ПОЛНЫЙ исходный текст Обо мне из резюме", "new_text": "ПОЛНЫЙ улучшенный текст Обо мне", "changes": "одно предложение: что изменилось"}}], "summary": "Итог", "overall_score": 0, "ats_score": 0}}
+{{"blocks": [{{"title": "Заголовок и контакты", "new_text": "текст", "changes": ""}}, {{"title": "Опыт работы", "new_text": "текст", "changes": ""}}, {{"title": "Навыки", "new_text": "текст", "changes": ""}}, {{"title": "Образование", "new_text": "текст", "changes": ""}}, {{"title": "Обо мне", "new_text": "текст", "changes": ""}}], "summary": "Итог", "overall_score": 0, "ats_score": 0}}
 
 СМЕРТЕЛЬНЫЕ ПРАВИЛА:
-1. old_text — это ПОЛНАЯ копия текста из исходного резюме для каждого блока. Не сокращай.
-2. new_text — ПОЛНЫЙ текст с учётом правок. Не сокращай.
-3. КАТЕГОРИЧЕСКИ НЕЛЬЗЯ придумывать: названия компаний (ООО, ЗАО, ИП), университеты (МГУ, ВШЭ), должности, цифры, имена. ТОЛЬКО то, что ЕСТЬ в исходном резюме.
-4. Если сомневаешься — НЕ МЕНЯЙ. Оставь как было.
+- НЕ придумывай компании, вузы, имена, цифры. Только то, что ЕСТЬ в резюме.
+- НЕ используй Markdown.
+- Для блоков НЕ из списка {', '.join(affected_blocks)} — верни текст БЕЗ ИЗМЕНЕНИЙ.
 
-Правки (примени ТОЛЬКО к указанным блокам):
+Правки:
 {fixes_text}
 
-ВСЁ РЕЗЮМЕ (ПРОЧИТАЙ ВНИМАТЕЛЬНО ВЕСЬ ТЕКСТ ДО КОНЦА):
-{resume_text}
+Резюме:
+{resume_text[:4000]}
 
-Верни ПОЛНЫЙ JSON."""
+JSON:"""
         
-        result = analyze_part("", "", custom_prompt=custom_prompt, timeout=150)
+        result = analyze_part("", "", custom_prompt=custom_prompt, timeout=120)
         
         if not result:
-            return {"redirect": None, "error": "AI не ответил. Попробуйте ещё раз."}
+            return {"redirect": None, "error": "AI не ответил."}
         
         d = extract_json(result)
         if not d or 'blocks' not in d:
             logger.error(f"Failed to parse: {result[:300]}")
-            return {"redirect": None, "error": "Не удалось разобрать ответ AI."}
+            return {"redirect": None, "error": "Не удалось разобрать ответ."}
+        
+        # Вставляем old_text из исходного резюме (сами, без AI)
+        for block in d['blocks']:
+            block['old_text'] = resume_text[:3000]  # полный текст резюме как old_text
         
         improved_id = str(uuid.uuid4())
         report_cache[improved_id] = {
@@ -219,7 +218,6 @@ def register_routes(app):
         
         try:
             if user_id:
-                # Сохраняем ПОЛНЫЙ текст (до 10000 символов), а не 500
                 save_analysis(user_id, resume_text[:10000], 
                             d.get('ats_score', 0), d.get('overall_score', 0), "improved")
         except Exception as e:
