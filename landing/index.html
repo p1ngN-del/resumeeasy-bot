@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ResumeEasy — Проверка резюме на ATS-совместимость</title>
+    <title>ResumeEasy — ATS-проверка резюме</title>
     <meta name="description" content="Бесплатная проверка резюме на совместимость с ATS-системами. Загрузите PDF и получите чек-лист правок, улучшенное резюме и сопроводительное письмо за 30 секунд.">
     <meta name="keywords" content="резюме, ATS, проверка резюме, hh.ru, работа, анализ резюме, трудоустройство">
     <meta name="yandex-verification" content="185fc6dbd37575bb" />
@@ -11,139 +11,381 @@
     <meta property="og:description" content="Проверьте резюме на совместимость с ATS за 30 секунд">
     <meta property="og:type" content="website">
     <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: #12121a;
+            --border: #1e1e2e;
+            --purple: #a78bfa;
+            --cyan: #22d3ee;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --red: #f87171;
+            --glow-purple: rgba(167, 139, 250, 0.15);
+            --glow-cyan: rgba(34, 211, 238, 0.10);
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            background: #0a0a0a; 
-            color: #e0e0e0; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Анимированные частицы */
+        #particles {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: var(--purple);
+            opacity: 0.3;
+            animation: floatUp linear infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 0.4; }
+            90% { opacity: 0.1; }
+            100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+        }
+
+        .wrapper {
+            position: relative;
+            z-index: 1;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
-            padding: 20px;
+            padding: 60px 24px 80px;
+            max-width: 1100px;
+            margin: 0 auto;
         }
-        .container { max-width: 600px; width: 100%; text-align: center; }
-        h1 { font-size: 2.5rem; margin-bottom: 15px; color: #fff; }
-        .highlight { color: #bb86fc; }
-        .subtitle { color: #aaa; font-size: 1.1rem; margin-bottom: 40px; line-height: 1.6; }
-        
-        .upload-zone {
-            border: 2px dashed #333;
-            border-radius: 16px;
-            padding: 50px 30px;
-            cursor: pointer;
-            transition: all 0.3s;
-            background: #111;
+
+        /* Hero */
+        .hero {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInUp 0.8s ease-out;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .hero h1 {
+            font-size: clamp(2.2rem, 5vw, 3.6rem);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
             margin-bottom: 20px;
+            color: #fff;
         }
-        .upload-zone:hover, .upload-zone.drag-over {
-            border-color: #bb86fc;
-            background: #1a1a2e;
+        .hero .gradient-text {
+            background: linear-gradient(135deg, var(--purple), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
-        .upload-zone .icon { font-size: 48px; margin-bottom: 15px; }
-        .upload-zone .text { color: #aaa; font-size: 1rem; }
-        .upload-zone .subtext { color: #666; font-size: 0.85rem; margin-top: 8px; }
-        .upload-zone input { display: none; }
-        
-        .status { display: none; margin-top: 20px; }
-        .status.active { display: block; }
-        .status p { color: #fff; margin-bottom: 10px; }
-        .progress-bar { 
-            width: 100%; 
-            height: 6px; 
-            background: #333; 
-            border-radius: 3px; 
-            overflow: hidden; 
+        .hero p {
+            font-size: 1.15rem;
+            color: var(--muted);
+            max-width: 600px;
+            margin: 0 auto 40px;
         }
-        .progress-fill { 
-            height: 100%; 
-            width: 0%; 
-            background: linear-gradient(90deg, #bb86fc, #03dac6); 
-            transition: width 0.3s; 
+
+        /* Upload Zone */
+        .upload-zone {
+            position: relative;
+            border: 2px dashed var(--border);
+            border-radius: 20px;
+            padding: 55px 40px;
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--card);
+            max-width: 520px;
+            width: 100%;
+            margin: 0 auto;
+            text-align: center;
+            box-shadow: 0 0 0 0 var(--glow-purple);
         }
-        
-        .error { color: #cf6679; margin-top: 10px; display: none; }
+        .upload-zone:hover,
+        .upload-zone.drag-over {
+            border-color: var(--purple);
+            box-shadow: 0 0 40px var(--glow-purple), 0 0 80px var(--glow-cyan);
+            transform: translateY(-2px);
+        }
+        .upload-zone .icon {
+            font-size: 52px;
+            margin-bottom: 16px;
+            display: inline-block;
+            transition: transform 0.3s;
+        }
+        .upload-zone:hover .icon {
+            transform: scale(1.1);
+        }
+        .upload-zone .text {
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .upload-zone .subtext {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        .upload-zone input {
+            display: none;
+        }
+
+        /* Progress */
+        .status {
+            display: none;
+            margin-top: 24px;
+            text-align: center;
+            max-width: 520px;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .status.active { display: block; animation: fadeInUp 0.3s ease-out; }
+        .status p { color: #fff; margin-bottom: 12px; font-weight: 500; }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--purple), var(--cyan));
+            border-radius: 10px;
+            transition: width 0.4s ease;
+            box-shadow: 0 0 12px var(--glow-purple);
+        }
+        .error {
+            color: var(--red);
+            margin-top: 12px;
+            display: none;
+            font-size: 0.95rem;
+        }
         .error.show { display: block; }
-        
-        .features {
+
+        /* Features */
+        .section-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 70px 0 15px;
+        }
+        .section-sub {
+            text-align: center;
+            color: var(--muted);
+            margin-bottom: 50px;
+            font-size: 1.05rem;
+        }
+        .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-top: 60px;
-            max-width: 800px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
             width: 100%;
         }
         .feature-card {
-            background: #1e1e1e;
-            padding: 25px;
-            border-radius: 12px;
-            border: 1px solid #333;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 28px;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at top left, var(--glow-purple), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .feature-card:hover {
+            border-color: var(--purple);
+            transform: translateY(-4px);
+            box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 30px var(--glow-purple);
+        }
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+        .feature-card .icon {
+            font-size: 40px;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+        .feature-card h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+        .feature-card p {
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Social Proof */
+        .stats-row {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 60px 0;
+        }
+        .stat-item {
             text-align: center;
         }
-        .feature-card .icon { font-size: 36px; margin-bottom: 10px; }
-        .feature-card h3 { color: #fff; margin-bottom: 8px; font-size: 1.1rem; }
-        .feature-card p { color: #888; font-size: 0.9rem; line-height: 1.5; }
-        
-        .footer { margin-top: 60px; color: #666; font-size: 0.85rem; }
-        .footer a { color: #bb86fc; text-decoration: none; }
-        
-        @media (max-width: 600px) {
-            h1 { font-size: 1.8rem; }
-            .upload-zone { padding: 30px 20px; }
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--purple), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .stat-label {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-top: 4px;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 40px 24px;
+            color: var(--muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+            width: 100%;
+        }
+        .footer a {
+            color: var(--purple);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .footer a:hover { color: var(--cyan); }
+
+        @media (max-width: 640px) {
+            .wrapper { padding: 40px 16px 60px; }
+            .upload-zone { padding: 35px 20px; }
+            .features-grid { grid-template-columns: 1fr; }
+            .stats-row { gap: 24px; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Проверьте резюме на <span class="highlight">ATS-совместимость</span></h1>
-        <p class="subtitle">Загрузите PDF и получите полный разбор за 30 секунд. 80% резюме отсеиваются роботами — узнайте, пройдёт ли ваше.</p>
-        
+    <!-- Частицы -->
+    <div id="particles"></div>
+
+    <div class="wrapper">
+        <!-- Hero -->
+        <div class="hero">
+            <h1>Ваше резюме глазами <span class="gradient-text">ATS-робота</span></h1>
+            <p>80% резюме отсеиваются до того, как их увидит человек. Узнайте, пройдёт ли ваше — и получите готовые правки за 30 секунд.</p>
+        </div>
+
+        <!-- Upload -->
         <div class="upload-zone" id="uploadZone">
             <div class="icon">📤</div>
             <div class="text">Перетащите PDF-резюме сюда</div>
             <div class="subtext">или нажмите, чтобы выбрать файл (до 10 МБ)</div>
             <input type="file" id="fileInput" accept=".pdf">
         </div>
-        
+
         <div class="status" id="status">
             <p id="statusText">⏳ Анализируем резюме...</p>
             <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
         </div>
         <div class="error" id="error"></div>
+
+        <!-- Features -->
+        <div class="section-title">Что вы получите</div>
+        <p class="section-sub">Полный разбор резюме с конкретными правками и улучшенной версией</p>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="icon">🔍</div>
+                <h3>ATS-совместимость</h3>
+                <p>Проверим, пройдёт ли резюме фильтры hh.ru, Workday, SAP. Вы получите конкретный список проблем.</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">📋</div>
+                <h3>Чек-лист правок</h3>
+                <p>Разобьём замечания по категориям: критичные, метрики, стиль. Отмечайте готовое.</p>
+            </div>
+            <div class="feature-card">
+                <div class="icon">✨</div>
+                <h3>Улучшенное резюме</h3>
+                <p>AI перепишет резюме с учётом отмеченных правок. Скопируйте блоками и вставьте в оригинал.</p>
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-item">
+                <div class="stat-value">ТОП-10</div>
+                <div class="stat-label">ключевых слов для ATS</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">6+</div>
+                <div class="stat-label">конкретных улучшений</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">30 сек</div>
+                <div class="stat-label">первый разбор</div>
+            </div>
+        </div>
     </div>
-    
-    <div class="features">
-        <div class="feature-card">
-            <div class="icon">🔍</div>
-            <h3>ATS-анализ</h3>
-            <p>Проверка на совместимость с hh.ru, Workday и другими системами</p>
-        </div>
-        <div class="feature-card">
-            <div class="icon">📋</div>
-            <h3>Чек-лист правок</h3>
-            <p>Конкретные рекомендации: что исправить и как</p>
-        </div>
-        <div class="feature-card">
-            <div class="icon">✨</div>
-            <h3>Улучшенное резюме</h3>
-            <p>Автоматическая генерация исправленной версии</p>
-        </div>
-    </div>
-    
+
     <div class="footer">
         <p>© 2026 <a href="https://t.me/your_bot" target="_blank">ResumeEasy</a> — Ваш персональный ATS-эксперт</p>
     </div>
 
     <script>
+        // Частицы
+        (function() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 35; i++) {
+                const p = document.createElement('div');
+                p.classList.add('particle');
+                const size = Math.random() * 4 + 2;
+                p.style.width = size + 'px';
+                p.style.height = size + 'px';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.animationDuration = Math.random() * 12 + 8 + 's';
+                p.style.animationDelay = Math.random() * 10 + 's';
+                container.appendChild(p);
+            }
+        })();
+
+        // Upload logic
         const zone = document.getElementById('uploadZone');
         const input = document.getElementById('fileInput');
         const status = document.getElementById('status');
         const statusText = document.getElementById('statusText');
         const progressFill = document.getElementById('progressFill');
         const error = document.getElementById('error');
-        
-        // URL твоего Railway-сервера
         const API_URL = 'https://resumeeasy-bot-production.up.railway.app/api/analyze';
 
         zone.addEventListener('click', () => input.click());
@@ -180,21 +422,19 @@
             statusText.innerText = '⏳ Анализируем резюме...';
             progressFill.style.width = '30%';
             error.classList.remove('show');
-
             const formData = new FormData();
             formData.append('file', file);
-
             try {
                 progressFill.style.width = '60%';
                 const response = await fetch(API_URL, { method: 'POST', body: formData });
                 progressFill.style.width = '90%';
                 const data = await response.json();
-                
                 if (data.redirect) {
                     progressFill.style.width = '100%';
                     statusText.innerText = '✅ Анализ готов! Открываем отчёт...';
-                    // Переадресация на Railway с отчётом
-                    window.location.href = 'https://resumeeasy-bot-production.up.railway.app' + data.redirect;
+                    setTimeout(() => {
+                        window.location.href = 'https://resumeeasy-bot-production.up.railway.app' + data.redirect;
+                    }, 400);
                 } else {
                     showError(data.error || 'Ошибка анализа. Попробуйте другой файл.');
                     status.classList.remove('active');
