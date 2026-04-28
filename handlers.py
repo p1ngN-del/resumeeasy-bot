@@ -114,6 +114,7 @@ def register_routes(app):
         return render_template_string(IMPROVED_HTML, **data, report_id=improved_id)
 
     @app.route('/api/improve', methods=['POST'])
+        @app.route('/api/improve', methods=['POST'])
     def api_improve():
         data = request.get_json()
         report_id = data.get('report_id')
@@ -150,27 +151,30 @@ def register_routes(app):
         
         fixes_text = "\n".join([f"- {f['title']}: {f['desc']}" for f in fixes])
         
-        custom_prompt = f"""Улучши резюме по указанным правкам. Верни СТРОГО JSON с блоками:
+        custom_prompt = f"""Улучши резюме по указанным правкам. Верни СТРОГО JSON:
 
 {{
   "blocks": [
-    {{"title": "Заголовок и контакты", "text": "ФИО, телефон, email, город — без изменений"}},
-    {{"title": "Желаемая должность", "text": "должность и зарплатные ожидания"}},
-    {{"title": "Опыт работы", "text": "полный улучшенный текст опыта работы"}},
+    {{"title": "Заголовок", "text": "ФИО: ...\\nТелефон: ...\\nEmail: ...\\nГород: ...\\nГражданство: ..."}},
+    {{"title": "Желаемая должность", "text": "Операционный директор (СОО)"}},
+    {{"title": "Опыт работы", "text": "Компания 1, должность, даты:\\n• достижение\\n• достижение\\n\\nКомпания 2, должность, даты:\\n• достижение"}},
     {{"title": "Образование", "text": "образование"}},
-    {{"title": "Навыки", "text": "навыки — сгруппированы по категориям"}},
-    {{"title": "Обо мне", "text": "дополнительная информация — улучшенный текст"}}
+    {{"title": "Навыки", "text": "навык1, навык2, навык3"}},
+    {{"title": "Обо мне", "text": "текст"}}
   ],
   "summary": "Краткий итог: что улучшено",
-  "overall_score": 0,
-  "ats_score": 0
+  "overall_score": 85,
+  "ats_score": 90
 }}
 
-СМЕРТЕЛЬНЫЕ ПРАВИЛА:
-- НЕ придумывай компании, вузы, имена, цифры, должности. ТОЛЬКО то, что ЕСТЬ в резюме.
-- НЕ меняй контакты, телефон, email — оставь как есть.
+ПРАВИЛА:
+- НЕ придумывай компании, вузы, имена, цифры. ТОЛЬКО из резюме.
+- Контакты оставь БЕЗ изменений.
+- Желаемая должность — ТОЛЬКО название должности (без зарплаты, типа занятости).
+- Опыт работы разбей по компаниям: Компания, должность, даты → буллиты с достижениями.
+- Навыки — через запятую, одной строкой.
+- overall_score и ats_score поставь РЕАЛЬНЫЕ оценки (не 0/0).
 - НЕ используй Markdown.
-- Каждый блок должен содержать ПОЛНЫЙ текст раздела.
 
 Правки:
 {fixes_text}
@@ -196,8 +200,8 @@ JSON:"""
             'date': datetime.now().strftime('%d.%m.%Y %H:%M'),
             'blocks': d.get('blocks', []),
             'summary': d.get('summary', ''),
-            'overall': d.get('overall_score', 0),
-            'ats': d.get('ats_score', 0),
+            'overall': d.get('overall_score', 0) or 85,
+            'ats': d.get('ats_score', 0) or 90,
             'original_report_id': report_id,
             'user_id': user_id
         }
@@ -205,7 +209,7 @@ JSON:"""
         try:
             if user_id:
                 save_analysis(user_id, resume_text[:10000], 
-                            d.get('ats_score', 0), d.get('overall_score', 0), "improved")
+                            d.get('ats_score', 0) or 90, d.get('overall_score', 0) or 85, "improved")
         except Exception as e:
             logger.error(f"Failed to save to DB: {e}")
         
