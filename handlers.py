@@ -114,7 +114,6 @@ def register_routes(app):
         return render_template_string(IMPROVED_HTML, **data, report_id=improved_id)
 
     @app.route('/api/improve', methods=['POST'])
-        @app.route('/api/improve', methods=['POST'])
     def api_improve():
         data = request.get_json()
         report_id = data.get('report_id')
