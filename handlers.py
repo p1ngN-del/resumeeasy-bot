@@ -137,6 +137,9 @@ def register_routes(app):
                 if row:
                     user_id = row[0]
                     resume_text = row[1]
+                    if len(resume_text) < 1000 and user_id in resume_cache:
+                        resume_text = resume_cache[user_id]
+                        logger.info(f"Restored full text from cache: {len(resume_text)} chars")
                     resume_cache[user_id] = resume_text
             except Exception as e:
                 logger.error(f"DB lookup error: {e}")
@@ -192,7 +195,7 @@ def register_routes(app):
 
 Верни ПОЛНЫЙ JSON."""
         
-        result = analyze_part("", "", custom_prompt=custom_prompt, timeout=90)
+        result = analyze_part("", "", custom_prompt=custom_prompt, timeout=150)
         
         if not result:
             return {"redirect": None, "error": "AI не ответил. Попробуйте ещё раз."}
