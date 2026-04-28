@@ -29,14 +29,24 @@ def extract_text_from_pdf(file_bytes):
                     text += page_text + "\n"
                 else:
                     logger.warning(f"PDF page {i+1} returned no text")
+        
+        # Очистка
+        lines = text.split('\n')
+        seen = set()
+        unique_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped and stripped not in seen:
+                seen.add(stripped)
+                unique_lines.append(line)
+        text = '\n'.join(unique_lines)
+        text = re.sub(r'\?(\s|$)', r'\1', text)
+        text = re.sub(r':{2,}', ':', text)
+        text = re.sub(r'\s+', ' ', text)
+        text = text.strip()
+        
         logger.info(f"PDF extracted: {len(text)} chars. Preview: {text[:200]}...")
-        sections = ["образование", "навыки", "опыт работы", "обо мне", "контакты"]
-        for s in sections:
-            if s.lower() in text.lower():
-                logger.info(f"✅ Section '{s}' found in PDF")
-            else:
-                logger.warning(f"❌ Section '{s}' NOT found in PDF")
-        return text.strip()
+        return text
     except Exception as e:
         logger.error(f"PDF error: {e}")
         return None
@@ -109,7 +119,6 @@ def register_routes(app):
         report_id = data.get('report_id')
         fixes = data.get('fixes', [])
         
-        # Пробуем получить из кэша
         report = report_cache.get(report_id)
         user_id = None
         resume_text = None
@@ -118,7 +127,6 @@ def register_routes(app):
             user_id = report.get('user_id')
             resume_text = resume_cache.get(user_id)
         
-        # Если нет в кэше — ищем в БД
         if not resume_text:
             try:
                 conn = get_db()
@@ -129,7 +137,6 @@ def register_routes(app):
                 if row:
                     user_id = row[0]
                     resume_text = row[1]
-                    # Восстанавливаем в кэш
                     resume_cache[user_id] = resume_text
             except Exception as e:
                 logger.error(f"DB lookup error: {e}")
@@ -137,55 +144,48 @@ def register_routes(app):
         if not resume_text:
             return {"redirect": None, "error": "Не могу найти текст резюме. Нажмите «Получить отчет» ещё раз."}
         
-        # ОПРЕДЕЛЯЕМ КАКИЕ БЛОКИ ЗАТРОНУТЫ
-        # Сопоставляем категории правок с блоками резюме
-        category_to_blocks = {
-            "critical": ["Заголовок и контакты", "Опыт работы"],
-            "metrics": ["Опыт работы"],
-            "style": ["Обо мне", "Опыт работы"]
-        }
+        logger.info(f"Improving resume for user {user_id}, text length: {len(resume_text)} chars")
         
-        # Собираем только затронутые блоки
+        # Определяем затронутые блоки
         affected_blocks = set()
         for fix in fixes:
-            # Определяем категорию по тексту правки
             title = fix.get('title', '').lower()
             desc = fix.get('desc', '').lower()
+            combined = title + ' ' + desc
             
-            if any(word in title + desc for word in ['заголовок', 'контакт', 'телефон', 'почта']):
+            if any(w in combined for w in ['заголовок', 'контакт', 'телефон', 'почта']):
                 affected_blocks.add("Заголовок и контакты")
-            if any(word in title + desc for word in ['опыт', 'работа', 'должность', 'метрик', 'цифр', 'процент', 'увелич', 'сократил']):
+            if any(w in combined for w in ['опыт', 'работа', 'должность', 'метрик', 'цифр', 'процент', 'увелич', 'сократил', 'бюджет']):
                 affected_blocks.add("Опыт работы")
-            if any(word in title + desc for word in ['навык', 'ключевые слова', 'hard skill', 'soft skill']):
+            if any(w in combined for w in ['навык', 'ключевые слова', 'hard skill', 'soft skill']):
                 affected_blocks.add("Навыки")
-            if any(word in title + desc for word in ['образование', 'вуз', 'университет', 'курс']):
+            if any(w in combined for w in ['образование', 'вуз', 'университет', 'курс']):
                 affected_blocks.add("Образование")
-            if any(word in title + desc for word in ['обо мне', 'о себе', 'стиль', 'язык', 'канцеляр', 'вода']):
+            if any(w in combined for w in ['обо мне', 'о себе', 'стиль', 'язык', 'канцеляр', 'вода']):
                 affected_blocks.add("Обо мне")
         
-        # Если ничего не определили — применяем ко всем блокам
         if not affected_blocks:
             affected_blocks = {"Заголовок и контакты", "Опыт работы", "Навыки", "Образование", "Обо мне"}
         
         logger.info(f"Applying fixes to blocks: {affected_blocks}")
-        
         fixes_text = "\n".join([f"- [{f['title']}] {f['desc']}" for f in fixes])
         
         custom_prompt = f"""Ты — эксперт по улучшению резюме. ИЗМЕНИ ТОЛЬКО указанные блоки: {', '.join(affected_blocks)}. Остальные блоки оставь БЕЗ ИЗМЕНЕНИЙ (new_text = old_text). Верни СТРОГО JSON:
 
 {{"blocks": [{{"title": "Заголовок и контакты", "old_text": "текст из резюме", "new_text": "текст", "changes": "что изменилось"}}, {{"title": "Опыт работы", "old_text": "текст из резюме", "new_text": "текст", "changes": "что изменилось"}}, {{"title": "Навыки", "old_text": "текст из резюме", "new_text": "текст", "changes": ""}}, {{"title": "Образование", "old_text": "текст из резюме", "new_text": "текст", "changes": ""}}, {{"title": "Обо мне", "old_text": "текст из резюме", "new_text": "текст", "changes": ""}}], "summary": "Итог", "overall_score": 0, "ats_score": 0}}
 
-ПРАВИЛА:
+ЖЁСТКИЕ ПРАВИЛА (нарушать нельзя):
+- НЕ ИМЕЕШЬ ПРАВА придумывать или изменять: названия компаний, должности, даты, цифры, имена, факты. ТОЛЬКО то, что ЕСТЬ в исходном резюме. Если сомневаешься — не меняй.
+- НЕ добавляй вымышленные компании (ООО, ЗАО и т.д.), которых нет в резюме.
 - old_text ОБЯЗАТЕЛЬНО заполни текстом из резюме. НЕ оставляй пустым.
 - НЕ ИЗМЕНЯЙ блоки, которых нет в списке: {', '.join(affected_blocks)}. Для них new_text = old_text.
-- НЕ придумывай информацию, которой нет в резюме.
 - НЕ используй Markdown.
 - НЕ трогай формат телефона, email, дат.
 
 Правки (примени ТОЛЬКО к указанным блокам):
 {fixes_text}
 
-ВСЁ РЕЗЮМЕ:
+ВСЁ РЕЗЮМЕ (ВНИМАТЕЛЬНО ПРОЧИТАЙ ВЕСЬ ТЕКСТ):
 {resume_text}
 
 Верни ПОЛНЫЙ JSON."""
@@ -314,7 +314,7 @@ def register_routes(app):
             if text in ['/start', '⬅️ Назад в меню']:
                 show_start_menu(chat_id); return 'ok', 200
             if text == '❓ Помощь':
-                send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Нажми «Получить отчет»\n3. Отметь нужные правки\n4. Нажми «Сгенерировать» — получишь готовое улучшенное резюме!"); return 'ok', 200
+                send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Нажми «Получить отчет»\n3. Отметь нужные правки\n4. Нажми «Сгенерировать»"); return 'ok', 200
             if text == '📈 Моя история':
                 hist = get_user_history(chat_id, 5)
                 if not hist: send_message(chat_id, "📭 Истории пока нет."); return 'ok', 200
@@ -375,10 +375,10 @@ def register_routes(app):
                 saved_job = resume_cache.get(f"{chat_id}_last_job")
                 if saved_job:
                     kb = {"keyboard": [["📋 Использовать прошлую вакансию"], ["🆕 Указать новую вакансию"], ["📝 Без вакансии (общее)"]], "resize_keyboard": True}
-                    send_message(chat_id, "📝 <b>Сопроводительное письмо</b>\n\nУ вас есть сохранённая вакансия.", reply_markup=kb)
+                    send_message(chat_id, "📝 <b>Сопроводительное письмо</b>", reply_markup=kb)
                 else:
                     kb = {"keyboard": [["🆕 Указать вакансию"], ["📝 Без вакансии (общее)"]], "resize_keyboard": True}
-                    send_message(chat_id, "📝 <b>Сопроводительное письмо</b>\n\nПод вакансию или общее?", reply_markup=kb)
+                    send_message(chat_id, "📝 <b>Сопроводительное письмо</b>", reply_markup=kb)
                 return 'ok', 200
             if text == '📋 Использовать прошлую вакансию':
                 if not resume_cache.get(chat_id): send_message(chat_id, "❌ Сначала загрузи резюме!"); return 'ok', 200
@@ -432,7 +432,7 @@ def register_routes(app):
                 res = analyze_part(rtext, "full_report", timeout=90)
                 d = extract_json(res)
                 if not d: send_message(chat_id, "❌ Не удалось сформировать отчет."); return 'ok', 200
-                logger.info(f"Report generated for user {chat_id}: ATS={d.get('ats_score')}, Overall={d.get('overall_score')}")
+                logger.info(f"Report generated: ATS={d.get('ats_score')}, Overall={d.get('overall_score')}")
                 report_id = str(uuid.uuid4())
                 save_analysis(chat_id, rtext[:500] + f"\n[report_id:{report_id}]", d.get('ats_score', 0), d.get('overall_score', 0), "full_report")
                 report_cache[report_id] = {
