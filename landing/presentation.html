@@ -16,6 +16,7 @@
             --green: #10b981;
             --red: #ef4444;
             --yellow: #f59e0b;
+            --pink: #ec4899;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -25,10 +26,7 @@
             line-height: 1.7;
             padding: 20px;
         }
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-        }
+        .container { max-width: 900px; margin: 0 auto; }
         
         /* Титульный слайд */
         .hero {
@@ -99,23 +97,7 @@
             border-top: 1px solid var(--border);
             font-size: 0.95rem;
         }
-        tr:hover td {
-            background: rgba(167, 139, 250, 0.05);
-        }
-        
-        /* Бейджи */
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin: 2px;
-        }
-        .badge-purple { background: var(--purple); color: #000; }
-        .badge-cyan { background: var(--cyan); color: #000; }
-        .badge-green { background: var(--green); color: #000; }
-        .badge-yellow { background: var(--yellow); color: #000; }
+        tr:hover td { background: rgba(167, 139, 250, 0.05); }
         
         /* Карточки фишек */
         .features-grid {
@@ -135,64 +117,135 @@
             border-color: var(--purple);
             transform: translateY(-2px);
         }
-        .feature-card .emoji {
-            font-size: 2rem;
-            margin-bottom: 8px;
-        }
-        .feature-card h4 {
-            color: #fff;
-            margin-bottom: 6px;
-        }
-        .feature-card p {
-            color: var(--muted);
-            font-size: 0.9rem;
-        }
+        .feature-card .emoji { font-size: 2rem; margin-bottom: 8px; }
+        .feature-card h4 { color: #fff; margin-bottom: 6px; }
+        .feature-card p { color: var(--muted); font-size: 0.9rem; }
         
-        /* Список */
-        ul {
-            list-style: none;
-            padding: 0;
-        }
-        ul li {
-            padding: 6px 0;
-            padding-left: 20px;
-            position: relative;
-            color: var(--muted);
-        }
-        ul li::before {
-            content: '▸';
-            color: var(--cyan);
-            position: absolute;
-            left: 0;
-        }
-        
-        /* Этапы */
-        .timeline {
+        /* Макеты интерфейса */
+        .mockup-row {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 12px;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
             margin: 20px 0;
         }
-        .timeline-item {
+        @media (max-width: 700px) {
+            .mockup-row { grid-template-columns: 1fr; }
+        }
+        
+        .phone-mockup {
             background: #0a0a0f;
+            border: 2px solid var(--border);
+            border-radius: 24px;
+            padding: 20px 16px;
+            max-width: 360px;
+            margin: 0 auto;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .phone-header {
+            text-align: center;
+            color: var(--purple);
+            font-weight: 700;
+            font-size: 0.85rem;
+            margin-bottom: 16px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .bot-msg {
+            background: #1a1a2e;
+            padding: 10px 14px;
+            border-radius: 12px 12px 12px 4px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            color: var(--text);
+        }
+        .bot-msg .highlight {
+            color: var(--cyan);
+            font-weight: 600;
+        }
+        .user-msg {
+            background: var(--purple);
+            color: #000;
+            padding: 8px 14px;
+            border-radius: 12px 12px 4px 12px;
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            text-align: right;
+            margin-left: auto;
+            max-width: 80%;
+        }
+        .inline-btn {
+            display: inline-block;
+            background: #1e1e2e;
+            color: var(--cyan);
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            margin: 4px;
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 16px;
             text-align: center;
         }
-        .timeline-item .week {
+        .price-table {
+            width: 100%;
+            margin: 8px 0;
             font-size: 0.8rem;
+        }
+        .price-table td {
+            padding: 6px 8px;
+            border-bottom: 1px solid #1e1e2e;
+        }
+        .price-best {
+            color: var(--green);
+            font-weight: 700;
+        }
+        
+        /* Дашборд */
+        .dashboard {
+            background: #0a0a0f;
+            border: 2px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .dash-title {
             color: var(--purple);
-            font-weight: 600;
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 16px;
         }
-        .timeline-item .name {
-            font-weight: 600;
-            margin: 4px 0;
-        }
-        .timeline-item .days {
+        .dash-stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #1e1e2e;
             font-size: 0.85rem;
+        }
+        .dash-stat .val {
+            color: var(--cyan);
+            font-weight: 700;
+        }
+        .mini-chart {
+            display: flex;
+            align-items: flex-end;
+            gap: 6px;
+            height: 60px;
+            margin: 16px 0;
+            padding: 0 10px;
+        }
+        .mini-bar {
+            flex: 1;
+            background: linear-gradient(to top, var(--purple), var(--cyan));
+            border-radius: 4px 4px 0 0;
+            min-width: 20px;
+        }
+        .chart-labels {
+            display: flex;
+            gap: 6px;
+            padding: 0 10px;
+            font-size: 0.7rem;
             color: var(--muted);
         }
+        .chart-labels span { flex: 1; text-align: center; }
         
         /* Футер */
         .footer {
@@ -201,10 +254,7 @@
             color: var(--muted);
             font-size: 0.9rem;
         }
-        .footer a {
-            color: var(--purple);
-            text-decoration: none;
-        }
+        .footer a { color: var(--purple); text-decoration: none; }
         
         @media (max-width: 600px) {
             .hero h1 { font-size: 2rem; }
@@ -220,7 +270,7 @@
         <div class="hero">
             <h1>InsureBot</h1>
             <p class="subtitle">Telegram-бот для страхового агента и его клиентов</p>
-            <p class="meta">Техническое задание • Апрель 2026 • Версия 1.0</p>
+            <p class="meta">Техническое задание • Апрель 2026</p>
         </div>
         
         <!-- ПРОБЛЕМА -->
@@ -234,6 +284,42 @@
                 <tr><td>💰 Клиент не понимает разницу между видами страховок</td><td>Бот объясняет простым языком с примерами</td></tr>
                 <tr><td>⏰ Агент не масштабируется — один человек</td><td>Бот работает без участия агента, принимает заявки</td></tr>
             </table>
+        </div>
+        
+        <!-- ПРИМЕР: КАЛЬКУЛЯТОР -->
+        <div class="section">
+            <h2>📱 Пример: Калькулятор ОСАГО для клиента</h2>
+            <div class="mockup-row">
+                <div class="phone-mockup">
+                    <div class="phone-header">🤖 InsureBot</div>
+                    <div class="bot-msg">🚗 <b>Калькулятор ОСАГО</b><br>Введите марку авто:</div>
+                    <div class="user-msg">Kia Rio 2020</div>
+                    <div class="bot-msg">Стаж вождения (лет)?</div>
+                    <div class="user-msg">10</div>
+                    <div class="bot-msg">Возраст и КБМ?</div>
+                    <div class="user-msg">34 года, КБМ 0.5</div>
+                    <div class="bot-msg">
+                        📊 <b>Сравнение цен:</b>
+                        <table class="price-table">
+                            <tr><td>🏢 АльфаСтрахование</td><td>8 500 ₽</td></tr>
+                            <tr><td>🏢 Ингосстрах</td><td>9 200 ₽</td></tr>
+                            <tr><td>🏢 РЕСО</td><td class="price-best">7 900 ₽ ←</td></tr>
+                            <tr><td>🏢 ВСК</td><td>8 800 ₽</td></tr>
+                            <tr><td>🏢 Согаз</td><td>8 100 ₽</td></tr>
+                        </table>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <span class="inline-btn">🏢 РЕСО — 7 900 ₽</span>
+                        <span class="inline-btn">🏢 Согаз — 8 100 ₽</span>
+                        <span class="inline-btn">📋 Все варианты</span>
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;justify-content:center;color:var(--muted);font-size:0.95rem;">
+                    <p>👆 Так клиент <b>за 1 минуту</b> получает сравнение цен в 5 страховых компаниях.</p>
+                    <p style="margin-top:12px;">🎯 Лучшая цена подсвечивается автоматически.</p>
+                    <p style="margin-top:12px;">📱 Весь процесс — прямо в Telegram, без сайтов и звонков.</p>
+                </div>
+            </div>
         </div>
         
         <!-- ДЛЯ КЛИЕНТА -->
@@ -273,6 +359,40 @@
             <p style="color: var(--muted);">По типам страховок, персональные предложения, поздравления</p>
         </div>
         
+        <!-- ПРИМЕР: АДМИН-ПАНЕЛЬ -->
+        <div class="section">
+            <h2>📊 Пример: Админ-панель агента</h2>
+            <div class="mockup-row">
+                <div class="dashboard">
+                    <div class="dash-title">📊 Дашборд — Апрель 2026</div>
+                    <div class="dash-stat"><span>👥 Всего клиентов</span><span class="val">247</span></div>
+                    <div class="dash-stat"><span>🆕 Новых за месяц</span><span class="val">34</span></div>
+                    <div class="dash-stat"><span>📄 Оформлено полисов</span><span class="val">189</span></div>
+                    <div class="dash-stat"><span>🔄 Продлений</span><span class="val">52</span></div>
+                    <div class="dash-stat"><span>💰 Средний чек</span><span class="val">12 400 ₽</span></div>
+                    <div class="dash-stat"><span>📈 Конверсия</span><span class="val" style="color:#10b981;">68%</span></div>
+                    <p style="font-size:0.75rem;color:var(--muted);margin-top:12px;">📈 Продажи по дням:</p>
+                    <div class="mini-chart">
+                        <div class="mini-bar" style="height:35px"></div>
+                        <div class="mini-bar" style="height:48px"></div>
+                        <div class="mini-bar" style="height:42px"></div>
+                        <div class="mini-bar" style="height:55px"></div>
+                        <div class="mini-bar" style="height:38px"></div>
+                        <div class="mini-bar" style="height:60px"></div>
+                        <div class="mini-bar" style="height:52px"></div>
+                    </div>
+                    <div class="chart-labels">
+                        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
+                    </div>
+                </div>
+                <div style="display:flex;flex-direction:column;justify-content:center;color:var(--muted);font-size:0.95rem;">
+                    <p>👆 Агент видит <b>всю статистику</b> в реальном времени.</p>
+                    <p style="margin-top:12px;">🔔 Уведомления о новых заявках приходят мгновенно.</p>
+                    <p style="margin-top:12px;">📤 Можно делать рассылки клиентам в 2 клика.</p>
+                </div>
+            </div>
+        </div>
+        
         <!-- КРУТЫЕ ФИШКИ -->
         <div class="section">
             <h2>⚡ Ключевые фишки</h2>
@@ -310,60 +430,8 @@
             </div>
         </div>
         
-        <!-- ЭТАПЫ -->
-        <div class="section">
-            <h2>📅 Этапы разработки</h2>
-            <div class="timeline">
-                <div class="timeline-item">
-                    <div class="week">Этап 1</div>
-                    <div class="name">MVP</div>
-                    <div class="days">Калькулятор + FAQ + Админка</div>
-                    <span class="badge badge-purple">2 недели</span>
-                </div>
-                <div class="timeline-item">
-                    <div class="week">Этап 2</div>
-                    <div class="name">Документы</div>
-                    <div class="days">Загрузка и проверка</div>
-                    <span class="badge badge-cyan">1 неделя</span>
-                </div>
-                <div class="timeline-item">
-                    <div class="week">Этап 3</div>
-                    <div class="name">Напоминания</div>
-                    <div class="days">Уведомления о продлении</div>
-                    <span class="badge badge-green">3 дня</span>
-                </div>
-                <div class="timeline-item">
-                    <div class="week">Этап 4</div>
-                    <div class="name">Платежи</div>
-                    <div class="days">Интеграция с ЮKassa</div>
-                    <span class="badge badge-yellow">1 неделя</span>
-                </div>
-                <div class="timeline-item">
-                    <div class="week">Этап 5</div>
-                    <div class="name">AI-консультант</div>
-                    <div class="days">DeepSeek для вопросов</div>
-                    <span class="badge badge-purple">1 неделя</span>
-                </div>
-            </div>
-            <p style="text-align: center; color: var(--cyan); margin-top: 16px; font-weight: 600;">Итого: ~5 недель до полного функционала</p>
-        </div>
-        
-        <!-- СТЕК -->
-        <div class="section">
-            <h2>🛠 Технологический стек</h2>
-            <table>
-                <tr><td>Бэкенд</td><td><strong>Python + Flask</strong></td></tr>
-                <tr><td>База данных</td><td><strong>PostgreSQL</strong></td></tr>
-                <tr><td>AI</td><td><strong>DeepSeek API</strong></td></tr>
-                <tr><td>Админ-панель</td><td><strong>HTML/CSS/JS (тёмная тема)</strong></td></tr>
-                <tr><td>Хостинг</td><td><strong>Railway</strong></td></tr>
-                <tr><td>Платежи</td><td><strong>ЮKassa / Тинькофф API</strong></td></tr>
-                <tr><td>Платформа</td><td><strong>Telegram Bot API</strong></td></tr>
-            </table>
-        </div>
-        
         <div class="footer">
-            <p>Подготовлено разработчиком ResumeEasy</p>
+            <p>Подготовлено разработчиком</p>
             <p>Контакты: <a href="https://t.me/ex1z0">@ex1z0</a> • <a href="mailto:p1ngn@mail.ru">p1ngn@mail.ru</a></p>
         </div>
     </div>
