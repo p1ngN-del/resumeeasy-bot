@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>InsureBot — ТЗ для страхового агента</title>
+    <title>StrahCar Bot — ТЗ для страхового агента</title>
     <style>
         :root {
             --bg: #0a0a0f;
@@ -28,7 +28,6 @@
         }
         .container { max-width: 900px; margin: 0 auto; }
         
-        /* Титульный слайд */
         .hero {
             text-align: center;
             padding: 80px 20px;
@@ -40,23 +39,21 @@
         .hero h1 {
             font-size: 2.8rem;
             font-weight: 800;
-            margin-bottom: 16px;
+            margin-bottom: 8px;
             background: linear-gradient(135deg, var(--purple), var(--cyan));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        .hero .subtitle {
-            font-size: 1.2rem;
-            color: var(--muted);
+        .hero .brand {
+            font-size: 1.4rem;
+            color: var(--pink);
+            font-weight: 600;
             margin-bottom: 10px;
         }
-        .hero .meta {
-            color: var(--muted);
-            font-size: 0.9rem;
-        }
+        .hero .subtitle { font-size: 1.2rem; color: var(--muted); margin-bottom: 10px; }
+        .hero .meta { color: var(--muted); font-size: 0.9rem; }
         
-        /* Секции */
         .section {
             background: var(--card);
             border: 1px solid var(--border);
@@ -71,18 +68,9 @@
             padding-bottom: 10px;
             border-bottom: 1px solid var(--border);
         }
-        .section h3 {
-            color: var(--cyan);
-            font-size: 1.1rem;
-            margin: 20px 0 10px;
-        }
+        .section h3 { color: var(--cyan); font-size: 1.1rem; margin: 20px 0 10px; }
         
-        /* Таблицы */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 16px 0;
-        }
+        table { width: 100%; border-collapse: collapse; margin: 16px 0; }
         th {
             background: #1a1a2e;
             padding: 12px;
@@ -90,38 +78,49 @@
             font-size: 0.85rem;
             color: var(--muted);
             text-transform: uppercase;
-            letter-spacing: 0.05em;
         }
-        td {
-            padding: 12px;
-            border-top: 1px solid var(--border);
-            font-size: 0.95rem;
-        }
+        td { padding: 12px; border-top: 1px solid var(--border); font-size: 0.95rem; }
         tr:hover td { background: rgba(167, 139, 250, 0.05); }
         
-        /* Карточки фишек */
         .features-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
             margin: 20px 0;
         }
         .feature-card {
             background: #0a0a0f;
             border: 1px solid var(--border);
             border-radius: 12px;
-            padding: 20px;
+            padding: 18px;
             transition: all 0.3s;
+            position: relative;
         }
-        .feature-card:hover {
-            border-color: var(--purple);
-            transform: translateY(-2px);
+        .feature-card:hover { border-color: var(--purple); transform: translateY(-2px); }
+        .feature-card .emoji { font-size: 1.8rem; margin-bottom: 6px; }
+        .feature-card h4 { color: #fff; margin-bottom: 4px; font-size: 0.95rem; }
+        .feature-card p { color: var(--muted); font-size: 0.82rem; }
+        .feature-card .badge-new {
+            position: absolute;
+            top: 8px; right: 8px;
+            background: var(--yellow);
+            color: #000;
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 700;
         }
-        .feature-card .emoji { font-size: 2rem; margin-bottom: 8px; }
-        .feature-card h4 { color: #fff; margin-bottom: 6px; }
-        .feature-card p { color: var(--muted); font-size: 0.9rem; }
+        .feature-card .badge-q {
+            position: absolute;
+            top: 8px; right: 8px;
+            background: var(--muted);
+            color: #000;
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 700;
+        }
         
-        /* Макеты интерфейса */
         .mockup-row {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -130,6 +129,9 @@
         }
         @media (max-width: 700px) {
             .mockup-row { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 2rem; }
+            .section { padding: 20px; }
+            .hero { padding: 40px 16px; }
         }
         
         .phone-mockup {
@@ -139,7 +141,6 @@
             padding: 20px 16px;
             max-width: 360px;
             margin: 0 auto;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         .phone-header {
             text-align: center;
@@ -158,10 +159,7 @@
             font-size: 0.85rem;
             color: var(--text);
         }
-        .bot-msg .highlight {
-            color: var(--cyan);
-            font-weight: 600;
-        }
+        .bot-msg .highlight { color: var(--cyan); font-weight: 600; }
         .user-msg {
             background: var(--purple);
             color: #000;
@@ -184,21 +182,10 @@
             border: 1px solid var(--border);
             text-align: center;
         }
-        .price-table {
-            width: 100%;
-            margin: 8px 0;
-            font-size: 0.8rem;
-        }
-        .price-table td {
-            padding: 6px 8px;
-            border-bottom: 1px solid #1e1e2e;
-        }
-        .price-best {
-            color: var(--green);
-            font-weight: 700;
-        }
+        .price-table { width: 100%; margin: 8px 0; font-size: 0.8rem; }
+        .price-table td { padding: 6px 8px; border-bottom: 1px solid #1e1e2e; }
+        .price-best { color: var(--green); font-weight: 700; }
         
-        /* Дашборд */
         .dashboard {
             background: #0a0a0f;
             border: 2px solid var(--border);
@@ -207,12 +194,7 @@
             max-width: 400px;
             margin: 0 auto;
         }
-        .dash-title {
-            color: var(--purple);
-            font-weight: 700;
-            font-size: 0.9rem;
-            margin-bottom: 16px;
-        }
+        .dash-title { color: var(--purple); font-weight: 700; font-size: 0.9rem; margin-bottom: 16px; }
         .dash-stat {
             display: flex;
             justify-content: space-between;
@@ -220,17 +202,13 @@
             border-bottom: 1px solid #1e1e2e;
             font-size: 0.85rem;
         }
-        .dash-stat .val {
-            color: var(--cyan);
-            font-weight: 700;
-        }
+        .dash-stat .val { color: var(--cyan); font-weight: 700; }
         .mini-chart {
             display: flex;
             align-items: flex-end;
             gap: 6px;
             height: 60px;
             margin: 16px 0;
-            padding: 0 10px;
         }
         .mini-bar {
             flex: 1;
@@ -238,28 +216,28 @@
             border-radius: 4px 4px 0 0;
             min-width: 20px;
         }
-        .chart-labels {
-            display: flex;
-            gap: 6px;
-            padding: 0 10px;
-            font-size: 0.7rem;
-            color: var(--muted);
-        }
+        .chart-labels { display: flex; gap: 6px; font-size: 0.7rem; color: var(--muted); }
         .chart-labels span { flex: 1; text-align: center; }
         
-        /* Футер */
-        .footer {
+        .cta-box {
             text-align: center;
             padding: 30px;
-            color: var(--muted);
-            font-size: 0.9rem;
+            background: linear-gradient(135deg, #1a1a2e, #0a0a0f);
+            border: 1px solid var(--purple);
+            border-radius: 16px;
         }
+        
+        .footer { text-align: center; padding: 30px; color: var(--muted); font-size: 0.9rem; }
         .footer a { color: var(--purple); text-decoration: none; }
         
-        @media (max-width: 600px) {
-            .hero h1 { font-size: 2rem; }
-            .section { padding: 20px; }
-            .hero { padding: 40px 16px; }
+        .note {
+            background: rgba(245, 158, 11, 0.1);
+            border-left: 3px solid var(--yellow);
+            padding: 10px 14px;
+            border-radius: 0 8px 8px 0;
+            margin: 12px 0;
+            font-size: 0.85rem;
+            color: var(--yellow);
         }
     </style>
 </head>
@@ -293,7 +271,10 @@
             <h2>📱 Пример: Калькулятор ОСАГО для клиента</h2>
             <div class="mockup-row">
                 <div class="phone-mockup">
-                    <div class="phone-header">🤖 StrahCar Bot</div>
+                    <div class="phone-header">
+                        <img src="СтрахКар.png" alt="StrahCar" style="height:20px;vertical-align:middle;margin-right:6px;">
+                        StrahCar Bot
+                    </div>
                     <div class="bot-msg">🚗 <b>Калькулятор ОСАГО</b><br>Введите марку авто:</div>
                     <div class="user-msg">Kia Rio 2020</div>
                     <div class="bot-msg">Стаж вождения (лет)?</div>
@@ -310,55 +291,134 @@
                             <tr><td>🏢 Согаз</td><td>8 100 ₽</td></tr>
                         </table>
                     </div>
+                    <div class="bot-msg">
+                        🎁 <b>Premium-предложение:</b><br>
+                        Авто + Квартира в пакете = <span class="highlight">скидка 15%</span>
+                    </div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
                         <span class="inline-btn">🏢 РЕСО — 7 900 ₽</span>
-                        <span class="inline-btn">🏢 Согаз — 8 100 ₽</span>
-                        <span class="inline-btn">📋 Все варианты</span>
+                        <span class="inline-btn">🎁 Пакет со скидкой</span>
                     </div>
                 </div>
                 <div style="display:flex;flex-direction:column;justify-content:center;color:var(--muted);font-size:0.95rem;">
-                    <p>👆 Так клиент <b>за 1 минуту</b> получает сравнение цен в 5 страховых компаниях.</p>
-                    <p style="margin-top:12px;">🎯 Лучшая цена подсвечивается автоматически.</p>
-                    <p style="margin-top:12px;">📱 Весь процесс — прямо в Telegram, без сайтов и звонков.</p>
+                    <p>👆 Клиент <b>за 1 минуту</b> получает сравнение цен в 5 компаниях.</p>
+                    <p style="margin-top:12px;">🎁 Бот предлагает <b>пакетную скидку</b> (авто + квартира).</p>
+                    <p style="margin-top:12px;">📱 Весь процесс — в Telegram, без сайтов и звонков.</p>
+                    <p style="margin-top:12px;">💎 Premium-клиенты получают <b>кэшбек 5%</b> с оформленного полиса.</p>
                 </div>
             </div>
         </div>
         
-        <!-- ДЛЯ КЛИЕНТА -->
+        <!-- ФУНКЦИОНАЛ КЛИЕНТА -->
         <div class="section">
             <h2>👤 Функционал для клиента</h2>
-            
-            <h3>🚗 Калькулятор стоимости полиса</h3>
-            <p style="color: var(--muted);">Вводит данные → получает сравнение цен в 5 компаниях → оформляет</p>
-            
-            <h3>📋 Квиз-подбор страховки</h3>
-            <p style="color: var(--muted);">5-7 вопросов → оптимальный вариант с прогнозом экономии</p>
-            
-            <h3>📄 Загрузка документов</h3>
-            <p style="color: var(--muted);">Фото СТС, прав, паспорта → авто-проверка комплектности</p>
-            
-            <h3>🔔 Напоминания о продлении</h3>
-            <p style="color: var(--muted);">За 7 дней, 3 дня, 1 день — уведомление с кнопкой «Продлить»</p>
-            
-            <h3>💬 FAQ — частые вопросы</h3>
-            <p style="color: var(--muted);">«Что такое КБМ?», «КАСКО vs ОСАГО», «Какие документы нужны?» — мгновенный ответ</p>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="emoji">🚗</div>
+                    <h4>Калькулятор ОСАГО/КАСКО</h4>
+                    <p>Сравнение цен в 5+ страховых за 1 минуту</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">📋</div>
+                    <h4>Квиз-подбор</h4>
+                    <p>5-7 вопросов → оптимальный вариант с прогнозом экономии</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">📄</div>
+                    <h4>Загрузка документов</h4>
+                    <p>Фото СТС, прав → авто-проверка комплектности</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">🔔</div>
+                    <h4>Напоминания о продлении</h4>
+                    <p>За 60, 30 и 7 дней — уведомление с кнопкой «Продлить»</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">💬</div>
+                    <h4>FAQ — частые вопросы</h4>
+                    <p>Мгновенный ответ без участия агента</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">🏠</div>
+                    <h4>Мульти-страхование</h4>
+                    <p>Авто + квартира + дача = скидка до 15%</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">🎁</div>
+                    <h4>Реферальная программа</h4>
+                    <p>Приведи друга → скидка 10%</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">🚨</div>
+                    <h4>Тревожная кнопка при ДТП</h4>
+                    <p>Пошаговая инструкция, вызов комиссара, сохранение фото</p>
+                    <span class="badge-q">НУЖНА?</span>
+                </div>
+            </div>
+            <div class="note">💡 Функция «Тревожная кнопка» — требует уточнения. Нужна ли она клиентам? Если да — бот даёт пошаговую инструкцию при ДТП, сохраняет фото и данные, уведомляет агента.</div>
         </div>
         
-        <!-- ДЛЯ АГЕНТА -->
+        <!-- ФУНКЦИОНАЛ АГЕНТА -->
         <div class="section">
             <h2>🔐 Функционал для агента (собственника)</h2>
-            
-            <h3>📊 Админ-панель</h3>
-            <p style="color: var(--muted);">Веб-интерфейс: все клиенты, полисы, график продаж, конверсия</p>
-            
-            <h3>🔔 CRM-уведомления</h3>
-            <p style="color: var(--muted);">Новый запрос, заканчивается полис, клиент загрузил документы</p>
-            
-            <h3>📝 Шаблоны ответов</h3>
-            <p style="color: var(--muted);">Быстрые команды: !осаго, !документы, !контакты</p>
-            
-            <h3>📤 Рассылки</h3>
-            <p style="color: var(--muted);">По типам страховок, персональные предложения, поздравления</p>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="emoji">📊</div>
+                    <h4>Админ-панель</h4>
+                    <p>Клиенты, полисы, график продаж, конверсия</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">🔔</div>
+                    <h4>CRM-уведомления</h4>
+                    <p>Новый запрос, продление, загрузка документов</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">📝</div>
+                    <h4>Шаблоны ответов</h4>
+                    <p>Быстрые команды: !осаго, !контакты</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">📤</div>
+                    <h4>Рассылки клиентам</h4>
+                    <p>По типам страховок, персональные предложения</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">🧠</div>
+                    <h4>AI-прогноз оттока</h4>
+                    <p>Бот предупреждает: «Клиент рискует уйти»</p>
+                    <span class="badge-new">NEW</span>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">📊</div>
+                    <h4>Тепловая карта продаж</h4>
+                    <p>По районам, типам страховок, сезонам</p>
+                    <span class="badge-new">NEW</span>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">💰</div>
+                    <h4>Финансовый отчёт</h4>
+                    <p>Выручка, комиссия, маржинальность</p>
+                    <span class="badge-new">NEW</span>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">📄</div>
+                    <h4>Авто-договор PDF</h4>
+                    <p>Генерация договора по шаблону</p>
+                    <span class="badge-new">NEW</span>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">🏆</div>
+                    <h4>Геймификация</h4>
+                    <p>Лучший клиент месяца, скидка за 5 полисов</p>
+                    <span class="badge-new">NEW</span>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">📱</div>
+                    <h4>WhatsApp-дублирование</h4>
+                    <p>Уведомления дублируются в WhatsApp</p>
+                    <span class="badge-new">NEW</span>
+                </div>
+            </div>
         </div>
         
         <!-- ПРИМЕР: АДМИН-ПАНЕЛЬ -->
@@ -373,6 +433,7 @@
                     <div class="dash-stat"><span>🔄 Продлений</span><span class="val">52</span></div>
                     <div class="dash-stat"><span>💰 Средний чек</span><span class="val">12 400 ₽</span></div>
                     <div class="dash-stat"><span>📈 Конверсия</span><span class="val" style="color:#10b981;">68%</span></div>
+                    <div class="dash-stat" style="color:#ef4444;"><span>⚠️ Риск оттока</span><span class="val" style="color:#ef4444;">3 клиента</span></div>
                     <p style="font-size:0.75rem;color:var(--muted);margin-top:12px;">📈 Продажи по дням:</p>
                     <div class="mini-chart">
                         <div class="mini-bar" style="height:35px"></div>
@@ -389,51 +450,67 @@
                 </div>
                 <div style="display:flex;flex-direction:column;justify-content:center;color:var(--muted);font-size:0.95rem;">
                     <p>👆 Агент видит <b>всю статистику</b> в реальном времени.</p>
-                    <p style="margin-top:12px;">🔔 Уведомления о новых заявках приходят мгновенно.</p>
-                    <p style="margin-top:12px;">📤 Можно делать рассылки клиентам в 2 клика.</p>
+                    <p style="margin-top:12px;">⚠️ <b>AI-прогноз оттока</b> — бот показывает клиентов, которые могут уйти.</p>
+                    <p style="margin-top:12px;">💰 Финансовый отчёт за любой период в 1 клик.</p>
                 </div>
             </div>
         </div>
         
-        <!-- КРУТЫЕ ФИШКИ -->
+        <!-- ПОДПИСКА -->
         <div class="section">
-            <h2>⚡ Ключевые фишки</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="emoji">🤖</div>
-                    <h4>AI-консультант</h4>
-                    <p>Отвечает на любые вопросы о страховке через нейросеть</p>
+            <h2>💎 Подписка StrahCar «Защита»</h2>
+            <p style="color:var(--muted);margin-bottom:20px;">Клиент страхуется раз в год — но защита нужна каждый день. Подписка даёт реальную экономию и сервис, который окупает себя.</p>
+            
+            <table>
+                <tr>
+                    <th>Функция</th>
+                    <th style="text-align:center">Бесплатно</th>
+                    <th style="text-align:center;color:var(--purple)">Защита<br>299 ₽/мес</th>
+                    <th style="text-align:center;color:var(--yellow)">Защита Pro<br>999 ₽/мес</th>
+                </tr>
+                <tr><td>🔍 Калькулятор ОСАГО</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+                <tr><td>📊 Сравнение цен</td><td style="text-align:center">3 компании</td><td style="text-align:center;color:var(--purple)">5 компаний</td><td style="text-align:center;color:var(--yellow)">Все компании</td></tr>
+                <tr><td>🔔 Напоминания</td><td style="text-align:center">Только ОСАГО</td><td style="text-align:center;color:var(--purple)">Все полисы</td><td style="text-align:center;color:var(--yellow)">Все + SMS</td></tr>
+                <tr><td>🛡 Кэшбек с полиса</td><td style="text-align:center">❌</td><td style="text-align:center;color:var(--green)">5%</td><td style="text-align:center;color:var(--green)">10%</td></tr>
+                <tr><td>🛡 Фиксация цены</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+                <tr><td>🚨 Тревожная кнопка</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+                <tr><td>📊 Паспорт авто</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+                <tr><td>👨‍💼 Консьерж</td><td style="text-align:center">❌</td><td style="text-align:center">❌</td><td style="text-align:center;color:var(--yellow)">✅</td></tr>
+            </table>
+            
+            <div class="mockup-row" style="margin-top:20px;">
+                <div style="background:#0a0a0f;border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
+                    <h3 style="color:var(--cyan);margin-bottom:10px;">💰 Окупаемость для клиента</h3>
+                    <table style="font-size:0.9rem;">
+                        <tr><td>💎 Стоимость подписки</td><td style="color:var(--text);text-align:right;">3 588 ₽/год</td></tr>
+                        <tr><td>🛡 Кэшбек 5% (с полиса 8 000 ₽)</td><td style="color:var(--green);text-align:right;">+ 400 ₽</td></tr>
+                        <tr><td>📊 Экономия на сравнении</td><td style="color:var(--green);text-align:right;">+ 1 500 ₽</td></tr>
+                        <tr><td>📄 Бесплатная проверка док.</td><td style="color:var(--green);text-align:right;">+ 500 ₽</td></tr>
+                        <tr style="border-top:2px solid var(--purple);"><td><b>Реальная стоимость</b></td><td style="color:var(--cyan);text-align:right;font-weight:700;">~99 ₽/мес</td></tr>
+                    </table>
+                    <p style="color:var(--muted);font-size:0.85rem;margin-top:12px;">Подписка окупает себя почти полностью. Клиент остаётся с ботом на весь год.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="emoji">📊</div>
-                    <h4>Сравнение в 1 экран</h4>
-                    <p>Таблица 5 компаний с подсветкой лучшей цены</p>
-                </div>
-                <div class="feature-card">
-                    <div class="emoji">📸</div>
-                    <h4>Распознавание фото</h4>
-                    <p>Загрузил фото прав → бот сам заполнил данные</p>
-                </div>
-                <div class="feature-card">
-                    <div class="emoji">🔔</div>
-                    <h4>Умные напоминания</h4>
-                    <p>Три касания до окончания полиса</p>
-                </div>
-                <div class="feature-card">
-                    <div class="emoji">🎯</div>
-                    <h4>Квиз вместо анкеты</h4>
-                    <p>5 вопросов вместо скучного списка полей</p>
-                </div>
-                <div class="feature-card">
-                    <div class="emoji">💰</div>
-                    <h4>Прогноз экономии</h4>
-                    <p>«С франшизой 30 тыс. вы экономите 12 000 ₽ в год»</p>
+                <div style="background:#0a0a0f;border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
+                    <h3 style="color:var(--cyan);margin-bottom:10px;">📈 Прогноз дохода агента</h3>
+                    <table style="font-size:0.9rem;">
+                        <tr><td>👥 100 клиентов (20 Premium)</td><td style="color:var(--green);text-align:right;">5 980 ₽/мес</td></tr>
+                        <tr><td>👥 500 клиентов (100 Premium)</td><td style="color:var(--green);text-align:right;">29 900 ₽/мес</td></tr>
+                        <tr><td>👥 1000 клиентов (200 Premium)</td><td style="color:var(--green);text-align:right;">59 800 ₽/мес</td></tr>
+                    </table>
+                    <p style="color:var(--muted);font-size:0.85rem;margin-top:12px;">Плюс рост среднего чека за счёт пакетных предложений и лояльности.</p>
                 </div>
             </div>
+        </div>
+        
+        <!-- ИТОГО -->
+        <div class="cta-box">
+            <h2 style="color:#fff;margin-bottom:10px;">🚀 Готовы обсудить детали?</h2>
+            <p style="color:var(--muted);margin-bottom:20px;">Бот окупается за счёт повышения конверсии, снижения времени на обработку заявок и роста среднего чека через пакетные предложения.</p>
+            <p style="color:var(--cyan);font-weight:600;">Свяжитесь для обсуждения сроков и стоимости</p>
         </div>
         
         <div class="footer">
-            <p>Подготовлено разработчиком</p>
+            <p>Подготовлено разработчиком Михаилом Рыбаковым</p>
             <p>Контакты: <a href="https://t.me/ex1z0">@ex1z0</a> • <a href="mailto:p1ngn@mail.ru">p1ngn@mail.ru</a></p>
         </div>
     </div>
