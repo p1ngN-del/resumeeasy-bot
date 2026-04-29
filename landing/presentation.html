@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InsureBot — ТЗ для страхового агента</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card: #12121a;
+            --border: #1e1e2e;
+            --purple: #a78bfa;
+            --cyan: #22d3ee;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --green: #10b981;
+            --red: #ef4444;
+            --yellow: #f59e0b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.7;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        
+        /* Титульный слайд */
+        .hero {
+            text-align: center;
+            padding: 80px 20px;
+            background: linear-gradient(135deg, #1a1a2e 0%, #0a0a0f 100%);
+            border-radius: 20px;
+            margin-bottom: 40px;
+            border: 1px solid var(--border);
+        }
+        .hero h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--purple), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero .subtitle {
+            font-size: 1.2rem;
+            color: var(--muted);
+            margin-bottom: 10px;
+        }
+        .hero .meta {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        
+        /* Секции */
+        .section {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 30px 35px;
+            margin-bottom: 24px;
+        }
+        .section h2 {
+            font-size: 1.5rem;
+            color: var(--purple);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border);
+        }
+        .section h3 {
+            color: var(--cyan);
+            font-size: 1.1rem;
+            margin: 20px 0 10px;
+        }
+        
+        /* Таблицы */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 16px 0;
+        }
+        th {
+            background: #1a1a2e;
+            padding: 12px;
+            text-align: left;
+            font-size: 0.85rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        td {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
+        tr:hover td {
+            background: rgba(167, 139, 250, 0.05);
+        }
+        
+        /* Бейджи */
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin: 2px;
+        }
+        .badge-purple { background: var(--purple); color: #000; }
+        .badge-cyan { background: var(--cyan); color: #000; }
+        .badge-green { background: var(--green); color: #000; }
+        .badge-yellow { background: var(--yellow); color: #000; }
+        
+        /* Карточки фишек */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .feature-card {
+            background: #0a0a0f;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s;
+        }
+        .feature-card:hover {
+            border-color: var(--purple);
+            transform: translateY(-2px);
+        }
+        .feature-card .emoji {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+        .feature-card h4 {
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .feature-card p {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        
+        /* Список */
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+        ul li {
+            padding: 6px 0;
+            padding-left: 20px;
+            position: relative;
+            color: var(--muted);
+        }
+        ul li::before {
+            content: '▸';
+            color: var(--cyan);
+            position: absolute;
+            left: 0;
+        }
+        
+        /* Этапы */
+        .timeline {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
+        }
+        .timeline-item {
+            background: #0a0a0f;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        .timeline-item .week {
+            font-size: 0.8rem;
+            color: var(--purple);
+            font-weight: 600;
+        }
+        .timeline-item .name {
+            font-weight: 600;
+            margin: 4px 0;
+        }
+        .timeline-item .days {
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+        
+        /* Футер */
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        .footer a {
+            color: var(--purple);
+            text-decoration: none;
+        }
+        
+        @media (max-width: 600px) {
+            .hero h1 { font-size: 2rem; }
+            .section { padding: 20px; }
+            .hero { padding: 40px 16px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        
+        <!-- ТИТУЛ -->
+        <div class="hero">
+            <h1>InsureBot</h1>
+            <p class="subtitle">Telegram-бот для страхового агента и его клиентов</p>
+            <p class="meta">Техническое задание • Апрель 2026 • Версия 1.0</p>
+        </div>
+        
+        <!-- ПРОБЛЕМА -->
+        <div class="section">
+            <h2>🔍 Проблемы, которые решает бот</h2>
+            <table>
+                <tr><th>Проблема</th><th>Решение</th></tr>
+                <tr><td>🔍 Клиенту сложно сравнить условия разных страховых</td><td>Бот за 1 минуту показывает сравнение по 5+ компаниям</td></tr>
+                <tr><td>📞 Агент тратит часы на однотипные вопросы</td><td>Бот отвечает на частые вопросы автоматически 24/7</td></tr>
+                <tr><td>📄 Потеря документов и пропуск сроков</td><td>Бот хранит историю и напоминает о продлении</td></tr>
+                <tr><td>💰 Клиент не понимает разницу между видами страховок</td><td>Бот объясняет простым языком с примерами</td></tr>
+                <tr><td>⏰ Агент не масштабируется — один человек</td><td>Бот работает без участия агента, принимает заявки</td></tr>
+            </table>
+        </div>
+        
+        <!-- ДЛЯ КЛИЕНТА -->
+        <div class="section">
+            <h2>👤 Функционал для клиента</h2>
+            
+            <h3>🚗 Калькулятор стоимости полиса</h3>
+            <p style="color: var(--muted);">Вводит данные → получает сравнение цен в 5 компаниях → оформляет</p>
+            
+            <h3>📋 Квиз-подбор страховки</h3>
+            <p style="color: var(--muted);">5-7 вопросов → оптимальный вариант с прогнозом экономии</p>
+            
+            <h3>📄 Загрузка документов</h3>
+            <p style="color: var(--muted);">Фото СТС, прав, паспорта → авто-проверка комплектности</p>
+            
+            <h3>🔔 Напоминания о продлении</h3>
+            <p style="color: var(--muted);">За 7 дней, 3 дня, 1 день — уведомление с кнопкой «Продлить»</p>
+            
+            <h3>💬 FAQ — частые вопросы</h3>
+            <p style="color: var(--muted);">«Что такое КБМ?», «КАСКО vs ОСАГО», «Какие документы нужны?» — мгновенный ответ</p>
+        </div>
+        
+        <!-- ДЛЯ АГЕНТА -->
+        <div class="section">
+            <h2>🔐 Функционал для агента (собственника)</h2>
+            
+            <h3>📊 Админ-панель</h3>
+            <p style="color: var(--muted);">Веб-интерфейс: все клиенты, полисы, график продаж, конверсия</p>
+            
+            <h3>🔔 CRM-уведомления</h3>
+            <p style="color: var(--muted);">Новый запрос, заканчивается полис, клиент загрузил документы</p>
+            
+            <h3>📝 Шаблоны ответов</h3>
+            <p style="color: var(--muted);">Быстрые команды: !осаго, !документы, !контакты</p>
+            
+            <h3>📤 Рассылки</h3>
+            <p style="color: var(--muted);">По типам страховок, персональные предложения, поздравления</p>
+        </div>
+        
+        <!-- КРУТЫЕ ФИШКИ -->
+        <div class="section">
+            <h2>⚡ Ключевые фишки</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="emoji">🤖</div>
+                    <h4>AI-консультант</h4>
+                    <p>Отвечает на любые вопросы о страховке через нейросеть</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">📊</div>
+                    <h4>Сравнение в 1 экран</h4>
+                    <p>Таблица 5 компаний с подсветкой лучшей цены</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">📸</div>
+                    <h4>Распознавание фото</h4>
+                    <p>Загрузил фото прав → бот сам заполнил данные</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">🔔</div>
+                    <h4>Умные напоминания</h4>
+                    <p>Три касания до окончания полиса</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">🎯</div>
+                    <h4>Квиз вместо анкеты</h4>
+                    <p>5 вопросов вместо скучного списка полей</p>
+                </div>
+                <div class="feature-card">
+                    <div class="emoji">💰</div>
+                    <h4>Прогноз экономии</h4>
+                    <p>«С франшизой 30 тыс. вы экономите 12 000 ₽ в год»</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ЭТАПЫ -->
+        <div class="section">
+            <h2>📅 Этапы разработки</h2>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="week">Этап 1</div>
+                    <div class="name">MVP</div>
+                    <div class="days">Калькулятор + FAQ + Админка</div>
+                    <span class="badge badge-purple">2 недели</span>
+                </div>
+                <div class="timeline-item">
+                    <div class="week">Этап 2</div>
+                    <div class="name">Документы</div>
+                    <div class="days">Загрузка и проверка</div>
+                    <span class="badge badge-cyan">1 неделя</span>
+                </div>
+                <div class="timeline-item">
+                    <div class="week">Этап 3</div>
+                    <div class="name">Напоминания</div>
+                    <div class="days">Уведомления о продлении</div>
+                    <span class="badge badge-green">3 дня</span>
+                </div>
+                <div class="timeline-item">
+                    <div class="week">Этап 4</div>
+                    <div class="name">Платежи</div>
+                    <div class="days">Интеграция с ЮKassa</div>
+                    <span class="badge badge-yellow">1 неделя</span>
+                </div>
+                <div class="timeline-item">
+                    <div class="week">Этап 5</div>
+                    <div class="name">AI-консультант</div>
+                    <div class="days">DeepSeek для вопросов</div>
+                    <span class="badge badge-purple">1 неделя</span>
+                </div>
+            </div>
+            <p style="text-align: center; color: var(--cyan); margin-top: 16px; font-weight: 600;">Итого: ~5 недель до полного функционала</p>
+        </div>
+        
+        <!-- СТЕК -->
+        <div class="section">
+            <h2>🛠 Технологический стек</h2>
+            <table>
+                <tr><td>Бэкенд</td><td><strong>Python + Flask</strong></td></tr>
+                <tr><td>База данных</td><td><strong>PostgreSQL</strong></td></tr>
+                <tr><td>AI</td><td><strong>DeepSeek API</strong></td></tr>
+                <tr><td>Админ-панель</td><td><strong>HTML/CSS/JS (тёмная тема)</strong></td></tr>
+                <tr><td>Хостинг</td><td><strong>Railway</strong></td></tr>
+                <tr><td>Платежи</td><td><strong>ЮKassa / Тинькофф API</strong></td></tr>
+                <tr><td>Платформа</td><td><strong>Telegram Bot API</strong></td></tr>
+            </table>
+        </div>
+        
+        <div class="footer">
+            <p>Подготовлено разработчиком ResumeEasy</p>
+            <p>Контакты: <a href="https://t.me/ex1z0">@ex1z0</a> • <a href="mailto:p1ngn@mail.ru">p1ngn@mail.ru</a></p>
+        </div>
+    </div>
+</body>
+</html>
