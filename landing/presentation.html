@@ -45,12 +45,7 @@
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
-        .hero .brand {
-            font-size: 1.4rem;
-            color: var(--pink);
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
+        .hero .brand { font-size: 1.4rem; color: var(--pink); font-weight: 600; margin-bottom: 10px; }
         .hero .subtitle { font-size: 1.2rem; color: var(--muted); margin-bottom: 10px; }
         .hero .meta { color: var(--muted); font-size: 0.9rem; }
         
@@ -71,55 +66,9 @@
         .section h3 { color: var(--cyan); font-size: 1.1rem; margin: 20px 0 10px; }
         
         table { width: 100%; border-collapse: collapse; margin: 16px 0; }
-        th {
-            background: #1a1a2e;
-            padding: 12px;
-            text-align: left;
-            font-size: 0.85rem;
-            color: var(--muted);
-            text-transform: uppercase;
-        }
+        th { background: #1a1a2e; padding: 12px; text-align: left; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; }
         td { padding: 12px; border-top: 1px solid var(--border); font-size: 0.95rem; }
         tr:hover td { background: rgba(167, 139, 250, 0.05); }
-        
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 14px;
-            margin: 20px 0;
-        }
-        .feature-card {
-            background: #0a0a0f;
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 18px;
-            transition: all 0.3s;
-            position: relative;
-        }
-        .feature-card:hover { border-color: var(--purple); transform: translateY(-2px); }
-        .feature-card .emoji { font-size: 1.8rem; margin-bottom: 6px; }
-        .feature-card h4 { color: #fff; margin-bottom: 4px; font-size: 0.95rem; }
-        .feature-card p { color: var(--muted); font-size: 0.82rem; }
-        .feature-card .badge-new {
-            position: absolute;
-            top: 8px; right: 8px;
-            background: var(--yellow);
-            color: #000;
-            font-size: 0.6rem;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-weight: 700;
-        }
-        .feature-card .badge-q {
-            position: absolute;
-            top: 8px; right: 8px;
-            background: var(--muted);
-            color: #000;
-            font-size: 0.6rem;
-            padding: 2px 8px;
-            border-radius: 10px;
-            font-weight: 700;
-        }
         
         .mockup-row {
             display: grid;
@@ -127,12 +76,7 @@
             gap: 20px;
             margin: 20px 0;
         }
-        @media (max-width: 700px) {
-            .mockup-row { grid-template-columns: 1fr; }
-            .hero h1 { font-size: 2rem; }
-            .section { padding: 20px; }
-            .hero { padding: 40px 16px; }
-        }
+        @media (max-width: 700px) { .mockup-row { grid-template-columns: 1fr; } .hero h1 { font-size: 2rem; } .section { padding: 20px; } .hero { padding: 40px 16px; } }
         
         .phone-mockup {
             background: #0a0a0f;
@@ -195,50 +139,17 @@
             margin: 0 auto;
         }
         .dash-title { color: var(--purple); font-weight: 700; font-size: 0.9rem; margin-bottom: 16px; }
-        .dash-stat {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid #1e1e2e;
-            font-size: 0.85rem;
-        }
+        .dash-stat { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #1e1e2e; font-size: 0.85rem; }
         .dash-stat .val { color: var(--cyan); font-weight: 700; }
-        .mini-chart {
-            display: flex;
-            align-items: flex-end;
-            gap: 6px;
-            height: 60px;
-            margin: 16px 0;
-        }
-        .mini-bar {
-            flex: 1;
-            background: linear-gradient(to top, var(--purple), var(--cyan));
-            border-radius: 4px 4px 0 0;
-            min-width: 20px;
-        }
+        .mini-chart { display: flex; align-items: flex-end; gap: 6px; height: 60px; margin: 16px 0; }
+        .mini-bar { flex: 1; background: linear-gradient(to top, var(--purple), var(--cyan)); border-radius: 4px 4px 0 0; min-width: 20px; }
         .chart-labels { display: flex; gap: 6px; font-size: 0.7rem; color: var(--muted); }
         .chart-labels span { flex: 1; text-align: center; }
         
-        .cta-box {
-            text-align: center;
-            padding: 30px;
-            background: linear-gradient(135deg, #1a1a2e, #0a0a0f);
-            border: 1px solid var(--purple);
-            border-radius: 16px;
-        }
-        
+        .cta-box { text-align: center; padding: 30px; background: linear-gradient(135deg, #1a1a2e, #0a0a0f); border: 1px solid var(--purple); border-radius: 16px; }
         .footer { text-align: center; padding: 30px; color: var(--muted); font-size: 0.9rem; }
         .footer a { color: var(--purple); text-decoration: none; }
-        
-        .note {
-            background: rgba(245, 158, 11, 0.1);
-            border-left: 3px solid var(--yellow);
-            padding: 10px 14px;
-            border-radius: 0 8px 8px 0;
-            margin: 12px 0;
-            font-size: 0.85rem;
-            color: var(--yellow);
-        }
+        .note { background: rgba(245, 158, 11, 0.1); border-left: 3px solid var(--yellow); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 12px 0; font-size: 0.85rem; color: var(--yellow); }
     </style>
 </head>
 <body>
@@ -268,236 +179,221 @@
         
         <!-- ПРИМЕР: КАЛЬКУЛЯТОР -->
         <div class="section">
-            <h2>📱 Пример: Калькулятор ОСАГО для клиента</h2>
+            <h2>📱 Пример: Калькулятор ОСАГО</h2>
             <div class="mockup-row">
                 <div class="phone-mockup">
-                    <div class="phone-header">
-                        <img src="СтрахКар.png" alt="StrahCar" style="height:20px;vertical-align:middle;margin-right:6px;">
-                        StrahCar Bot
-                    </div>
-                    <div class="bot-msg">🚗 <b>Калькулятор ОСАГО</b><br>Введите марку авто:</div>
+                    <div class="phone-header"><img src="СтрахКар.png" alt="StrahCar" style="height:20px;vertical-align:middle;margin-right:6px;">StrahCar Bot</div>
+                    <div class="bot-msg">🚗 <b>Калькулятор ОСАГО</b><br>Марка авто?</div>
                     <div class="user-msg">Kia Rio 2020</div>
-                    <div class="bot-msg">Стаж вождения (лет)?</div>
-                    <div class="user-msg">10</div>
-                    <div class="bot-msg">Возраст и КБМ?</div>
-                    <div class="user-msg">34 года, КБМ 0.5</div>
+                    <div class="bot-msg">Стаж?</div><div class="user-msg">10 лет</div>
+                    <div class="bot-msg">КБМ?</div><div class="user-msg">0.5</div>
                     <div class="bot-msg">
                         📊 <b>Сравнение цен:</b>
                         <table class="price-table">
-                            <tr><td>🏢 АльфаСтрахование</td><td>8 500 ₽</td></tr>
-                            <tr><td>🏢 Ингосстрах</td><td>9 200 ₽</td></tr>
                             <tr><td>🏢 РЕСО</td><td class="price-best">7 900 ₽ ←</td></tr>
-                            <tr><td>🏢 ВСК</td><td>8 800 ₽</td></tr>
                             <tr><td>🏢 Согаз</td><td>8 100 ₽</td></tr>
+                            <tr><td>🏢 Альфа</td><td>8 500 ₽</td></tr>
                         </table>
-                    </div>
-                    <div class="bot-msg">
-                        🎁 <b>Premium-предложение:</b><br>
-                        Авто + Квартира в пакете = <span class="highlight">скидка 15%</span>
                     </div>
                     <div style="display:flex;gap:6px;flex-wrap:wrap;">
                         <span class="inline-btn">🏢 РЕСО — 7 900 ₽</span>
-                        <span class="inline-btn">🎁 Пакет со скидкой</span>
+                        <span class="inline-btn">🎁 Пакет</span>
                     </div>
                 </div>
                 <div style="display:flex;flex-direction:column;justify-content:center;color:var(--muted);font-size:0.95rem;">
-                    <p>👆 Клиент <b>за 1 минуту</b> получает сравнение цен в 5 компаниях.</p>
-                    <p style="margin-top:12px;">🎁 Бот предлагает <b>пакетную скидку</b> (авто + квартира).</p>
-                    <p style="margin-top:12px;">📱 Весь процесс — в Telegram, без сайтов и звонков.</p>
-                    <p style="margin-top:12px;">💎 Premium-клиенты получают <b>кэшбек 5%</b> с оформленного полиса.</p>
+                    <p>👆 Клиент <b>за 1 минуту</b> получает сравнение цен.</p>
+                    <p style="margin-top:12px;">🎁 Бот предлагает <b>пакетную скидку</b>.</p>
                 </div>
             </div>
         </div>
-        
-        <!-- ФУНКЦИОНАЛ КЛИЕНТА -->
+
+        <!-- ПРИМЕР: КВИЗ -->
         <div class="section">
-            <h2>👤 Функционал для клиента</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="emoji">🚗</div>
-                    <h4>Калькулятор ОСАГО/КАСКО</h4>
-                    <p>Сравнение цен в 5+ страховых за 1 минуту</p>
+            <h2>📋 Пример: Квиз-подбор страховки</h2>
+            <div class="mockup-row">
+                <div class="phone-mockup">
+                    <div class="phone-header">🤖 StrahCar Bot</div>
+                    <div class="bot-msg">📋 <b>Подбор страховки</b><br>Что страхуем?</div>
+                    <div class="user-msg">Авто + Дача</div>
+                    <div class="bot-msg">Бюджет на авто?</div>
+                    <div class="user-msg">до 10 000 ₽</div>
+                    <div class="bot-msg">Нужна франшиза?</div>
+                    <div class="user-msg">Да, до 30 000</div>
+                    <div class="bot-msg">
+                        ✅ <b>Оптимально:</b><br>
+                        🚗 КАСКО от РЕСО — <span class="highlight">9 500 ₽</span><br>
+                        🏠 Дача от Ингосстрах — <span class="highlight">3 200 ₽</span><br>
+                        🎁 В пакете: <span class="highlight">скидка 12%</span><br>
+                        💰 Экономия: <b>1 500 ₽</b>
+                    </div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <span class="inline-btn">✅ Оформить пакет</span>
+                    </div>
                 </div>
-                <div class="feature-card">
-                    <div class="emoji">📋</div>
-                    <h4>Квиз-подбор</h4>
-                    <p>5-7 вопросов → оптимальный вариант с прогнозом экономии</p>
-                </div>
-                <div class="feature-card">
-                    <div class="emoji">📄</div>
-                    <h4>Загрузка документов</h4>
-                    <p>Фото СТС, прав → авто-проверка комплектности</p>
-                </div>
-                <div class="feature-card">
-                    <div class="emoji">🔔</div>
-                    <h4>Напоминания о продлении</h4>
-                    <p>За 60, 30 и 7 дней — уведомление с кнопкой «Продлить»</p>
-                </div>
-                <div class="feature-card">
-                    <div class="emoji">💬</div>
-                    <h4>FAQ — частые вопросы</h4>
-                    <p>Мгновенный ответ без участия агента</p>
-                </div>
-                <div class="feature-card">
-                    <div class="emoji">🏠</div>
-                    <h4>Мульти-страхование</h4>
-                    <p>Авто + квартира + дача = скидка до 15%</p>
-                </div>
-                <div class="feature-card">
-                    <div class="emoji">🎁</div>
-                    <h4>Реферальная программа</h4>
-                    <p>Приведи друга → скидка 10%</p>
-                </div>
-                <div class="feature-card">
-                    <div class="emoji">🚨</div>
-                    <h4>Тревожная кнопка при ДТП</h4>
-                    <p>Пошаговая инструкция, вызов комиссара, сохранение фото</p>
-                    <span class="badge-q">НУЖНА?</span>
+                <div style="display:flex;flex-direction:column;justify-content:center;color:var(--muted);font-size:0.95rem;">
+                    <p>👆 <b>5 вопросов</b> вместо скучной анкеты.</p>
+                    <p style="margin-top:12px;">💰 Бот сразу показывает <b>прогноз экономии</b>.</p>
                 </div>
             </div>
-            <div class="note">💡 Функция «Тревожная кнопка» — требует уточнения. Нужна ли она клиентам? Если да — бот даёт пошаговую инструкцию при ДТП, сохраняет фото и данные, уведомляет агента.</div>
         </div>
-        
-        <!-- ФУНКЦИОНАЛ АГЕНТА -->
+
+        <!-- ПРИМЕР: ЗАГРУЗКА ДОКУМЕНТОВ -->
         <div class="section">
-            <h2>🔐 Функционал для агента (собственника)</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="emoji">📊</div>
-                    <h4>Админ-панель</h4>
-                    <p>Клиенты, полисы, график продаж, конверсия</p>
+            <h2>📄 Пример: Загрузка документов</h2>
+            <div class="mockup-row">
+                <div class="phone-mockup">
+                    <div class="phone-header">🤖 StrahCar Bot</div>
+                    <div class="bot-msg">📄 Для оформления ОСАГО нужны:<br>• СТС (фото)<br>• Права (фото)<br>• Паспорт (фото)</div>
+                    <div class="bot-msg">📸 Загрузите фото СТС:</div>
+                    <div class="user-msg">[фото СТС загружено]</div>
+                    <div class="bot-msg">✅ СТС принято. Теперь права:</div>
+                    <div class="user-msg">[фото прав загружено]</div>
+                    <div class="bot-msg">✅ <b>Все документы приняты!</b><br>
+                        📋 Комплект: полный<br>
+                        🔍 СТС: не просрочено<br>
+                        🔍 Права: действуют до 2031<br>
+                        📤 Отправлено агенту</div>
                 </div>
-                <div class="feature-card">
-                    <div class="emoji">🔔</div>
-                    <h4>CRM-уведомления</h4>
-                    <p>Новый запрос, продление, загрузка документов</p>
+                <div style="display:flex;flex-direction:column;justify-content:center;color:var(--muted);font-size:0.95rem;">
+                    <p>👆 Бот сам проверяет <b>комплектность</b> документов.</p>
+                    <p style="margin-top:12px;">📤 Автоматически отправляет <b>агенту</b>.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="emoji">📝</div>
-                    <h4>Шаблоны ответов</h4>
-                    <p>Быстрые команды: !осаго, !контакты</p>
+            </div>
+        </div>
+
+        <!-- ПРИМЕР: НАПОМИНАНИЯ -->
+        <div class="section">
+            <h2>🔔 Пример: Напоминания о продлении</h2>
+            <div class="mockup-row">
+                <div class="phone-mockup">
+                    <div class="phone-header">🤖 StrahCar Bot</div>
+                    <div class="bot-msg">🔔 <b>Напоминание!</b><br><br>
+                        🚗 ОСАГО (Kia Rio) — <span class="highlight">заканчивается через 7 дней</span><br>
+                        📅 Дата окончания: 5 мая 2026<br>
+                        💰 Ориентировочная стоимость: 8 200 ₽</div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <span class="inline-btn">🔄 Продлить сейчас</span>
+                        <span class="inline-btn">📋 Сравнить цены</span>
+                    </div>
+                    <div class="bot-msg" style="margin-top:10px;">Также заканчиваются:<br>
+                        🏠 Квартира — через 14 дней<br>
+                        🏡 Дача — через 21 день</div>
                 </div>
-                <div class="feature-card">
-                    <div class="emoji">📤</div>
-                    <h4>Рассылки клиентам</h4>
-                    <p>По типам страховок, персональные предложения</p>
+                <div style="display:flex;flex-direction:column;justify-content:center;color:var(--muted);font-size:0.95rem;">
+                    <p>👆 <b>Три касания:</b> за 60, 30 и 7 дней.</p>
+                    <p style="margin-top:12px;">📊 Все полисы в одном месте.</p>
+                    <p style="margin-top:12px;">🔄 Кнопка «Продлить» — в 1 клик.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="emoji">🧠</div>
-                    <h4>AI-прогноз оттока</h4>
-                    <p>Бот предупреждает: «Клиент рискует уйти»</p>
-                    <span class="badge-new">NEW</span>
+            </div>
+        </div>
+
+        <!-- ПРИМЕР: ТРЕВОЖНАЯ КНОПКА -->
+        <div class="section">
+            <h2>🚨 Пример: Тревожная кнопка при ДТП</h2>
+            <div class="note" style="margin-bottom:16px;">💡 Функция требует уточнения. Нужна ли она клиентам?</div>
+            <div class="mockup-row">
+                <div class="phone-mockup">
+                    <div class="phone-header">🤖 StrahCar Bot</div>
+                    <div class="user-msg">🚨 ДТП</div>
+                    <div class="bot-msg">🚨 <b>Что делать при ДТП:</b><br><br>
+                        1️⃣ Включить аварийку, выставить знак<br>
+                        2️⃣ Сфотографировать повреждения с 4 сторон<br>
+                        3️⃣ Заполнить европротокол (<a href="#" style="color:var(--cyan);">скачать бланк</a>)<br>
+                        4️⃣ Позвонить в страховую: <b>8-800-...</b><br><br>
+                        📸 Загрузите фото повреждений:</div>
+                    <div class="user-msg">[3 фото загружено]</div>
+                    <div class="bot-msg">✅ Данные сохранены.<br>👨‍💼 Агент уведомлён.<br>🚗 Нужен аварийный комиссар?</div>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        <span class="inline-btn">📞 Вызвать комиссара</span>
+                        <span class="inline-btn">✅ Справлюсь сам</span>
+                    </div>
                 </div>
-                <div class="feature-card">
-                    <div class="emoji">📊</div>
-                    <h4>Тепловая карта продаж</h4>
-                    <p>По районам, типам страховок, сезонам</p>
-                    <span class="badge-new">NEW</span>
+                <div style="display:flex;flex-direction:column;justify-content:center;color:var(--muted);font-size:0.95rem;">
+                    <p>👆 <b>В стрессе</b> человек забывает порядок действий. Бот даёт чёткий план.</p>
+                    <p style="margin-top:12px;">📸 Фото сохраняются <b>в историю клиента</b>.</p>
+                    <p style="margin-top:12px;">👨‍💼 Агент получает уведомление <b>мгновенно</b>.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="emoji">💰</div>
-                    <h4>Финансовый отчёт</h4>
-                    <p>Выручка, комиссия, маржинальность</p>
-                    <span class="badge-new">NEW</span>
+            </div>
+        </div>
+
+        <!-- ПРИМЕР: FAQ -->
+        <div class="section">
+            <h2>💬 Пример: FAQ — частые вопросы</h2>
+            <div class="mockup-row">
+                <div class="phone-mockup">
+                    <div class="phone-header">🤖 StrahCar Bot</div>
+                    <div class="user-msg">Чем отличается КАСКО от ОСАГО?</div>
+                    <div class="bot-msg">📘 <b>ОСАГО</b> — страхует вашу ответственность перед другими. Если вы виноваты в ДТП — страховая платит пострадавшему. <b>Обязательно</b> для всех.<br><br>
+                    📘 <b>КАСКО</b> — страхует ваш автомобиль от угона, повреждений, стихии. <b>Добровольно</b>, но защищает вас в любом случае.</div>
+                    <div class="user-msg">Какие документы нужны для оформления?</div>
+                    <div class="bot-msg">📋 Для ОСАГО: паспорт, права, СТС (или ПТС).<br>Для КАСКО: дополнительно — фото авто с 4 сторон.</div>
                 </div>
-                <div class="feature-card">
-                    <div class="emoji">📄</div>
-                    <h4>Авто-договор PDF</h4>
-                    <p>Генерация договора по шаблону</p>
-                    <span class="badge-new">NEW</span>
+                <div style="display:flex;flex-direction:column;justify-content:center;color:var(--muted);font-size:0.95rem;">
+                    <p>👆 Бот отвечает <b>мгновенно, 24/7</b>.</p>
+                    <p style="margin-top:12px;">📚 Все ответы на базе знаний агента.</p>
+                    <p style="margin-top:12px;">⏰ Экономит <b>часы времени</b> агента.</p>
                 </div>
-                <div class="feature-card">
-                    <div class="emoji">🏆</div>
-                    <h4>Геймификация</h4>
-                    <p>Лучший клиент месяца, скидка за 5 полисов</p>
-                    <span class="badge-new">NEW</span>
+            </div>
+        </div>
+
+        <!-- ПОДПИСКА -->
+        <div class="section">
+            <h2>💎 Подписка StrahCar «Защита»</h2>
+            <p style="color:var(--muted);margin-bottom:20px;">Клиент страхуется раз в год — но защита нужна каждый день. Подписка даёт реальную экономию.</p>
+            <table>
+                <tr><th>Функция</th><th style="text-align:center">Бесплатно</th><th style="text-align:center;color:var(--purple)">Защита 299 ₽/мес</th><th style="text-align:center;color:var(--yellow)">Pro 999 ₽/мес</th></tr>
+                <tr><td>🔍 Калькулятор</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+                <tr><td>📊 Сравнение</td><td style="text-align:center">3 компании</td><td style="text-align:center;color:var(--purple)">5 компаний</td><td style="text-align:center;color:var(--yellow)">Все</td></tr>
+                <tr><td>🔔 Напоминания</td><td style="text-align:center">ОСАГО</td><td style="text-align:center;color:var(--purple)">Все полисы</td><td style="text-align:center;color:var(--yellow)">Все + SMS</td></tr>
+                <tr><td>🛡 Кэшбек</td><td style="text-align:center">❌</td><td style="text-align:center;color:var(--green)">5%</td><td style="text-align:center;color:var(--green)">10%</td></tr>
+                <tr><td>🛡 Фиксация цены</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+                <tr><td>🚨 Тревожная</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+                <tr><td>📊 Паспорт авто</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
+                <tr><td>👨‍💼 Консьерж</td><td style="text-align:center">❌</td><td style="text-align:center">❌</td><td style="text-align:center;color:var(--yellow)">✅</td></tr>
+            </table>
+            <div class="mockup-row" style="margin-top:20px;">
+                <div style="background:#0a0a0f;border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
+                    <h3 style="color:var(--cyan);">💰 Окупаемость для клиента</h3>
+                    <table style="font-size:0.9rem;">
+                        <tr><td>💎 Подписка</td><td style="text-align:right;">3 588 ₽/год</td></tr>
+                        <tr><td>🛡 Кэшбек 5%</td><td style="color:var(--green);text-align:right;">+ 400 ₽</td></tr>
+                        <tr><td>📊 Экономия</td><td style="color:var(--green);text-align:right;">+ 1 500 ₽</td></tr>
+                        <tr><td>📄 Проверка док.</td><td style="color:var(--green);text-align:right;">+ 500 ₽</td></tr>
+                        <tr style="border-top:2px solid var(--purple);"><td><b>Реальная цена</b></td><td style="color:var(--cyan);text-align:right;font-weight:700;">~99 ₽/мес</td></tr>
+                    </table>
                 </div>
-                <div class="feature-card">
-                    <div class="emoji">📱</div>
-                    <h4>WhatsApp-дублирование</h4>
-                    <p>Уведомления дублируются в WhatsApp</p>
-                    <span class="badge-new">NEW</span>
+                <div style="background:#0a0a0f;border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
+                    <h3 style="color:var(--cyan);">📈 Доход агента</h3>
+                    <table style="font-size:0.9rem;">
+                        <tr><td>👥 100 → 20 Premium</td><td style="color:var(--green);text-align:right;">5 980 ₽/мес</td></tr>
+                        <tr><td>👥 500 → 100 Premium</td><td style="color:var(--green);text-align:right;">29 900 ₽/мес</td></tr>
+                        <tr><td>👥 1000 → 200 Premium</td><td style="color:var(--green);text-align:right;">59 800 ₽/мес</td></tr>
+                    </table>
                 </div>
             </div>
         </div>
         
-        <!-- ПРИМЕР: АДМИН-ПАНЕЛЬ -->
+        <!-- АДМИН-ПАНЕЛЬ -->
         <div class="section">
             <h2>📊 Пример: Админ-панель агента</h2>
             <div class="mockup-row">
                 <div class="dashboard">
                     <div class="dash-title">📊 StrahCar — Апрель 2026</div>
                     <div class="dash-stat"><span>👥 Всего клиентов</span><span class="val">247</span></div>
-                    <div class="dash-stat"><span>🆕 Новых за месяц</span><span class="val">34</span></div>
-                    <div class="dash-stat"><span>📄 Оформлено полисов</span><span class="val">189</span></div>
-                    <div class="dash-stat"><span>🔄 Продлений</span><span class="val">52</span></div>
+                    <div class="dash-stat"><span>🆕 Новых</span><span class="val">34</span></div>
+                    <div class="dash-stat"><span>📄 Полисов</span><span class="val">189</span></div>
                     <div class="dash-stat"><span>💰 Средний чек</span><span class="val">12 400 ₽</span></div>
                     <div class="dash-stat"><span>📈 Конверсия</span><span class="val" style="color:#10b981;">68%</span></div>
                     <div class="dash-stat" style="color:#ef4444;"><span>⚠️ Риск оттока</span><span class="val" style="color:#ef4444;">3 клиента</span></div>
-                    <p style="font-size:0.75rem;color:var(--muted);margin-top:12px;">📈 Продажи по дням:</p>
                     <div class="mini-chart">
-                        <div class="mini-bar" style="height:35px"></div>
-                        <div class="mini-bar" style="height:48px"></div>
-                        <div class="mini-bar" style="height:42px"></div>
-                        <div class="mini-bar" style="height:55px"></div>
-                        <div class="mini-bar" style="height:38px"></div>
-                        <div class="mini-bar" style="height:60px"></div>
-                        <div class="mini-bar" style="height:52px"></div>
+                        <div class="mini-bar" style="height:35px"></div><div class="mini-bar" style="height:48px"></div><div class="mini-bar" style="height:42px"></div><div class="mini-bar" style="height:55px"></div><div class="mini-bar" style="height:38px"></div><div class="mini-bar" style="height:60px"></div><div class="mini-bar" style="height:52px"></div>
                     </div>
-                    <div class="chart-labels">
-                        <span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span>
-                    </div>
+                    <div class="chart-labels"><span>Пн</span><span>Вт</span><span>Ср</span><span>Чт</span><span>Пт</span><span>Сб</span><span>Вс</span></div>
                 </div>
                 <div style="display:flex;flex-direction:column;justify-content:center;color:var(--muted);font-size:0.95rem;">
-                    <p>👆 Агент видит <b>всю статистику</b> в реальном времени.</p>
+                    <p>👆 <b>Вся статистика</b> в реальном времени.</p>
                     <p style="margin-top:12px;">⚠️ <b>AI-прогноз оттока</b> — бот показывает клиентов, которые могут уйти.</p>
-                    <p style="margin-top:12px;">💰 Финансовый отчёт за любой период в 1 клик.</p>
-                </div>
-            </div>
-        </div>
-        
-        <!-- ПОДПИСКА -->
-        <div class="section">
-            <h2>💎 Подписка StrahCar «Защита»</h2>
-            <p style="color:var(--muted);margin-bottom:20px;">Клиент страхуется раз в год — но защита нужна каждый день. Подписка даёт реальную экономию и сервис, который окупает себя.</p>
-            
-            <table>
-                <tr>
-                    <th>Функция</th>
-                    <th style="text-align:center">Бесплатно</th>
-                    <th style="text-align:center;color:var(--purple)">Защита<br>299 ₽/мес</th>
-                    <th style="text-align:center;color:var(--yellow)">Защита Pro<br>999 ₽/мес</th>
-                </tr>
-                <tr><td>🔍 Калькулятор ОСАГО</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
-                <tr><td>📊 Сравнение цен</td><td style="text-align:center">3 компании</td><td style="text-align:center;color:var(--purple)">5 компаний</td><td style="text-align:center;color:var(--yellow)">Все компании</td></tr>
-                <tr><td>🔔 Напоминания</td><td style="text-align:center">Только ОСАГО</td><td style="text-align:center;color:var(--purple)">Все полисы</td><td style="text-align:center;color:var(--yellow)">Все + SMS</td></tr>
-                <tr><td>🛡 Кэшбек с полиса</td><td style="text-align:center">❌</td><td style="text-align:center;color:var(--green)">5%</td><td style="text-align:center;color:var(--green)">10%</td></tr>
-                <tr><td>🛡 Фиксация цены</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
-                <tr><td>🚨 Тревожная кнопка</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
-                <tr><td>📊 Паспорт авто</td><td style="text-align:center">❌</td><td style="text-align:center">✅</td><td style="text-align:center">✅</td></tr>
-                <tr><td>👨‍💼 Консьерж</td><td style="text-align:center">❌</td><td style="text-align:center">❌</td><td style="text-align:center;color:var(--yellow)">✅</td></tr>
-            </table>
-            
-            <div class="mockup-row" style="margin-top:20px;">
-                <div style="background:#0a0a0f;border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
-                    <h3 style="color:var(--cyan);margin-bottom:10px;">💰 Окупаемость для клиента</h3>
-                    <table style="font-size:0.9rem;">
-                        <tr><td>💎 Стоимость подписки</td><td style="color:var(--text);text-align:right;">3 588 ₽/год</td></tr>
-                        <tr><td>🛡 Кэшбек 5% (с полиса 8 000 ₽)</td><td style="color:var(--green);text-align:right;">+ 400 ₽</td></tr>
-                        <tr><td>📊 Экономия на сравнении</td><td style="color:var(--green);text-align:right;">+ 1 500 ₽</td></tr>
-                        <tr><td>📄 Бесплатная проверка док.</td><td style="color:var(--green);text-align:right;">+ 500 ₽</td></tr>
-                        <tr style="border-top:2px solid var(--purple);"><td><b>Реальная стоимость</b></td><td style="color:var(--cyan);text-align:right;font-weight:700;">~99 ₽/мес</td></tr>
-                    </table>
-                    <p style="color:var(--muted);font-size:0.85rem;margin-top:12px;">Подписка окупает себя почти полностью. Клиент остаётся с ботом на весь год.</p>
-                </div>
-                <div style="background:#0a0a0f;border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center;">
-                    <h3 style="color:var(--cyan);margin-bottom:10px;">📈 Прогноз дохода агента</h3>
-                    <table style="font-size:0.9rem;">
-                        <tr><td>👥 100 клиентов (20 Premium)</td><td style="color:var(--green);text-align:right;">5 980 ₽/мес</td></tr>
-                        <tr><td>👥 500 клиентов (100 Premium)</td><td style="color:var(--green);text-align:right;">29 900 ₽/мес</td></tr>
-                        <tr><td>👥 1000 клиентов (200 Premium)</td><td style="color:var(--green);text-align:right;">59 800 ₽/мес</td></tr>
-                    </table>
-                    <p style="color:var(--muted);font-size:0.85rem;margin-top:12px;">Плюс рост среднего чека за счёт пакетных предложений и лояльности.</p>
+                    <p style="margin-top:12px;">💰 Финансовый отчёт за любой период.</p>
                 </div>
             </div>
         </div>
@@ -505,7 +401,7 @@
         <!-- ИТОГО -->
         <div class="cta-box">
             <h2 style="color:#fff;margin-bottom:10px;">🚀 Готовы обсудить детали?</h2>
-            <p style="color:var(--muted);margin-bottom:20px;">Бот окупается за счёт повышения конверсии, снижения времени на обработку заявок и роста среднего чека через пакетные предложения.</p>
+            <p style="color:var(--muted);margin-bottom:20px;">Бот окупается за счёт повышения конверсии, снижения времени на обработку заявок и роста среднего чека.</p>
             <p style="color:var(--cyan);font-weight:600;">Свяжитесь для обсуждения сроков и стоимости</p>
         </div>
         
