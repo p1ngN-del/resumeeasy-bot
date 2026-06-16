@@ -4,7 +4,7 @@ import logging
 from datetime import datetime
 from flask import Blueprint, request, render_template_string, jsonify
 
-from database import save_analysis
+from database import save_analysis, save_user
 from ai import analyze_part
 from telegram_helpers import extract_json
 from handlers import extract_text_from_pdf, report_cache, resume_cache
@@ -51,8 +51,21 @@ def api_analyze():
             return jsonify({"error": "Не удалось проанализировать резюме. Попробуйте позже."}), 500
         
         # Сохраняем
-        web_user_id = hash(str(datetime.now().timestamp())) % 10000000
-        save_analysis(web_user_id, resume_text, data.get('ats_score', 0), data.get('overall_score', 0), "web_upload")
+        web_user_id = int(datetime.now().timestamp() * 1000000)
+
+save_user(
+    web_user_id,
+    username="web_user",
+    first_name="Web Upload"
+)
+
+save_analysis(
+    web_user_id,
+    resume_text,
+    data.get('ats_score', 0),
+    data.get('overall_score', 0),
+    "web_upload"
+)
         
         report_id = str(uuid.uuid4())
         report_cache[report_id] = {
