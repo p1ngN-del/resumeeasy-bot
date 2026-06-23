@@ -1,4 +1,4 @@
-# templates.py — ОРИГИНАЛЬНЫЙ ДИЗАЙН (как было до сегодня)
+# templates.py — полные шаблоны для всех отчётов
 
 REPORT_HTML = """
 <!DOCTYPE html>
@@ -7,12 +7,13 @@ REPORT_HTML = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Резюме — полный разбор</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a1a;
-            color: #ccd6f6;
+            font-family: 'Inter', sans-serif;
+            background: #0b0b1a;
+            color: #e0e0e0;
             display: flex;
             justify-content: center;
             padding: 30px 20px;
@@ -193,7 +194,7 @@ REPORT_HTML = """
         <div class="section">
             <h2>🔧 Чек-лист правок</h2>
             {% if critical_fixes %}
-            <div style="margin: 12px 0 8px; font-weight: 600; color: #f28b82;">⚠️ Критические</div>
+            <div style="margin: 12px 0 8px; font-weight: 600; color: #f28b82;">Критические</div>
             {% for fix in critical_fixes %}
             <div class="fix-item">
                 <div class="icon">⚠️</div>
@@ -205,7 +206,7 @@ REPORT_HTML = """
             {% endfor %}
             {% endif %}
             {% if metrics_fixes %}
-            <div style="margin: 12px 0 8px; font-weight: 600; color: #fdbc6b;">📊 Метрики и цифры</div>
+            <div style="margin: 12px 0 8px; font-weight: 600; color: #fdbc6b;">Метрики и цифры</div>
             {% for fix in metrics_fixes %}
             <div class="fix-item" style="border-left-color: #fdbc6b;">
                 <div class="icon">📊</div>
@@ -217,7 +218,7 @@ REPORT_HTML = """
             {% endfor %}
             {% endif %}
             {% if style_fixes %}
-            <div style="margin: 12px 0 8px; font-weight: 600; color: #81c995;">✏️ Стиль и формулировки</div>
+            <div style="margin: 12px 0 8px; font-weight: 600; color: #81c995;">Стиль и формулировки</div>
             {% for fix in style_fixes %}
             <div class="fix-item" style="border-left-color: #81c995;">
                 <div class="icon">✏️</div>
