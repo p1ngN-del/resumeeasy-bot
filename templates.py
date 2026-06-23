@@ -1,5 +1,3 @@
-<!-- templates.py: ЗАМЕНИТЕ БЛОК REPORT_HTML НА ЭТОТ КОД -->
-
 REPORT_HTML = """
 <!DOCTYPE html>
 <html>
