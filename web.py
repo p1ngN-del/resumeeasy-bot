@@ -71,7 +71,7 @@ def api_analyze():
         ensure_user_exists_for_web(web_user_id)
 
         # Анализируем резюме через AI
-        result = analyze_part(resume_text, "full_report", timeout=90)
+        result = analyze_part(resume_text, "full_report", timeout=300)
         data = extract_json(result)
 
         if not data:
@@ -156,7 +156,7 @@ def api_analyze_stream():
             web_user_id = int(datetime.now().timestamp() * 1000000)
             ensure_user_exists_for_web(web_user_id)
 
-            result = analyze_part(resume_text, "full_report", timeout=90)
+            result = analyze_part(resume_text, "full_report", timeout=300)
             data = extract_json(result)
 
             if not data:
