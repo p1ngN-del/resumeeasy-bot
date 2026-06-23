@@ -114,110 +114,115 @@ LANDING_HTML = """
     </div>
 
     <script>
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-        const progressSection = document.getElementById('progressSection');
-        const progressFill = document.getElementById('progressFill');
-        const progressStatus = document.getElementById('progressStatus');
-        const stageText = document.getElementById('stageText');
-        const errorText = document.getElementById('errorText');
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    const progressSection = document.getElementById('progressSection');
+    const progressFill = document.getElementById('progressFill');
+    const progressStatus = document.getElementById('progressStatus');
+    const stageText = document.getElementById('stageText');
+    const errorText = document.getElementById('errorText');
 
-        dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('click', function() {
+        fileInput.click();
+    });
 
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('dragover');
-        });
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
-        });
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            if (e.dataTransfer.files.length) {
-                handleFile(e.dataTransfer.files[0]);
-            }
-        });
+    dropZone.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+    });
 
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length) {
-                handleFile(e.target.files[0]);
-            }
-        });
+    dropZone.addEventListener('dragleave', function() {
+        dropZone.classList.remove('dragover');
+    });
 
-        function handleFile(file) {
-            errorText.textContent = '';
+    dropZone.addEventListener('drop', function(e) {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        if (e.dataTransfer.files.length) {
+            handleFile(e.dataTransfer.files[0]);
+        }
+    });
 
-            if (!file.name.toLowerCase().endsWith('.pdf')) {
-                errorText.textContent = '❌ Пожалуйста, загрузите файл в формате PDF.';
-                return;
-            }
+    fileInput.addEventListener('change', function(e) {
+        if (e.target.files.length) {
+            handleFile(e.target.files[0]);
+        }
+    });
 
-            if (file.size > 10 * 1024 * 1024) {
-                errorText.textContent = '❌ Файл больше 10 МБ. Пожалуйста, уменьшите размер.';
-                return;
-            }
+    function handleFile(file) {
+        errorText.textContent = '';
 
-            progressSection.classList.add('active');
-            updateProgress(0, '⏳ Начинаю анализ...');
+        if (!file.name.toLowerCase().endsWith('.pdf')) {
+            errorText.textContent = '❌ Пожалуйста, загрузите файл в формате PDF.';
+            return;
+        }
 
-            const formData = new FormData();
-            formData.append('file', file);
+        if (file.size > 10 * 1024 * 1024) {
+            errorText.textContent = '❌ Файл больше 10 МБ. Пожалуйста, уменьшите размер.';
+            return;
+        }
 
-            fetch('/api/analyze-stream', {
-                method: 'POST',
-                body: formData
-            }).then(response => {
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
+        progressSection.classList.add('active');
+        updateProgress(0, '⏳ Начинаю анализ...');
 
-                function readStream() {
-                    reader.read().then(({ done, value }) => {
-                        if (done) {
-                            if (!window._redirected) {
-                                updateProgress(0, '❌ Ошибка: сервер не вернул результат');
-                            }
-                            return;
+        var formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/api/analyze-stream', {
+            method: 'POST',
+            body: formData
+        }).then(function(response) {
+            var reader = response.body.getReader();
+            var decoder = new TextDecoder();
+
+            function readStream() {
+                reader.read().then(function(result) {
+                    if (result.done) {
+                        if (!window._redirected) {
+                            updateProgress(0, '❌ Ошибка: сервер не вернул результат');
                         }
-                        const chunk = decoder.decode(value);
-                        const lines = chunk.split('\n');
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                try {
-                                    const data = JSON.parse(line.slice(6));
-                                    if (data.stage !== undefined) {
-                                        updateProgress(data.progress || 0, data.stage);
-                                    }
-                                    if (data.redirect) {
-                                        window._redirected = true;
-                                        window.location.href = data.redirect;
-                                    }
-                                    if (data.error) {
-                                        updateProgress(0, '❌ ' + data.error);
-                                        errorText.textContent = '❌ ' + data.error;
-                                    }
-                                } catch (e) {
-                                    console.warn('Parse error:', e);
+                        return;
+                    }
+                    var chunk = decoder.decode(result.value);
+                    var lines = chunk.split('\n');
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.startsWith('data: ')) {
+                            try {
+                                var data = JSON.parse(line.slice(6));
+                                if (data.stage !== undefined) {
+                                    updateProgress(data.progress || 0, data.stage);
                                 }
+                                if (data.redirect) {
+                                    window._redirected = true;
+                                    window.location.href = data.redirect;
+                                }
+                                if (data.error) {
+                                    updateProgress(0, '❌ ' + data.error);
+                                    errorText.textContent = '❌ ' + data.error;
+                                }
+                            } catch (e) {
+                                console.warn('Parse error:', e);
                             }
                         }
-                        readStream();
-                    });
-                }
-                readStream();
-            }).catch(err => {
-                console.error('Fetch error:', err);
-                updateProgress(0, '❌ Ошибка соединения с сервером');
-                errorText.textContent = '❌ Ошибка соединения с сервером. Попробуйте позже.';
-            });
-        }
+                    }
+                    readStream();
+                });
+            }
+            readStream();
+        }).catch(function(err) {
+            console.error('Fetch error:', err);
+            updateProgress(0, '❌ Ошибка соединения с сервером');
+            errorText.textContent = '❌ Ошибка соединения с сервером. Попробуйте позже.';
+        });
+    }
 
-        function updateProgress(percent, text) {
-            progressFill.style.width = percent + '%';
-            progressStatus.textContent = Math.round(percent) + '%';
-            stageText.textContent = text;
-        }
-    </script>
+    function updateProgress(percent, text) {
+        progressFill.style.width = percent + '%';
+        progressStatus.textContent = Math.round(percent) + '%';
+        stageText.textContent = text;
+    }
+</script>
 </body>
 </html>
 """
