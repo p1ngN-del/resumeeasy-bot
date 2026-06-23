@@ -1,222 +1,303 @@
-LANDING_HTML = r"""
+LANDING_HTML = """
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ResumeEasy — Проверка резюме на ATS</title>
+    <title>ResumeEasy — ATS-проверка резюме</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
-            background: #0a0a0a; 
-            color: #e0e0e0; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            line-height: 1.6; 
-            overflow-x: hidden;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0a0a1a 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
         }
-        .hero { 
-            min-height: 100vh; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center; 
-            text-align: center; 
-            padding: 40px 20px;
-            background: radial-gradient(ellipse at center, #1a1a2e 0%, #0a0a0a 70%);
-        }
-        .hero h1 { 
-            font-size: clamp(2rem, 5vw, 3.5rem); 
-            color: #fff; 
-            margin-bottom: 20px; 
-            max-width: 800px; 
-        }
-        .hero .highlight { color: #bb86fc; }
-        .hero p { 
-            font-size: 1.2rem; 
-            color: #aaa; 
-            max-width: 600px; 
-            margin-bottom: 40px; 
-        }
-        .upload-zone {
-            border: 2px dashed #333;
-            border-radius: 16px;
-            padding: 60px 40px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s;
-            max-width: 500px;
+        .container {
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 600px;
             width: 100%;
-            margin: 0 auto;
-            background: #111;
-        }
-        .upload-zone:hover, .upload-zone.drag-over {
-            border-color: #bb86fc;
-            background: #1a1a2e;
-            transform: scale(1.02);
-        }
-        .upload-zone .icon { font-size: 48px; margin-bottom: 15px; }
-        .upload-zone .text { color: #aaa; font-size: 1rem; }
-        .upload-zone .subtext { color: #666; font-size: 0.85rem; margin-top: 8px; }
-        .upload-zone input { display: none; }
-        
-        .status { margin-top: 20px; display: none; }
-        .status.active { display: block; }
-        .progress-bar { 
-            width: 100%; 
-            height: 6px; 
-            background: #333; 
-            border-radius: 3px; 
-            overflow: hidden; 
-            margin-top: 10px; 
-        }
-        .progress-fill { 
-            height: 100%; 
-            width: 0%; 
-            background: linear-gradient(90deg, #bb86fc, #03dac6); 
-            transition: width 0.3s; 
-        }
-        
-        .steps {
-            padding: 80px 20px;
-            max-width: 900px;
-            margin: 0 auto;
-        }
-        .steps h2 { text-align: center; color: #fff; margin-bottom: 50px; font-size: 2rem; }
-        .steps-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 30px;
-        }
-        .step-card {
-            background: #1e1e1e;
-            padding: 30px;
-            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             text-align: center;
-            border: 1px solid #333;
         }
-        .step-card .num {
+        .logo {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        h1 {
+            color: #fff;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #8892b0;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 2px dashed rgba(255,255,255,0.2);
+            border-radius: 16px;
+            padding: 40px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255,255,255,0.03);
+        }
+        .upload-area:hover {
+            border-color: #64ffda;
+            background: rgba(100,255,218,0.05);
+        }
+        .upload-area.dragover {
+            border-color: #64ffda;
+            background: rgba(100,255,218,0.1);
+        }
+        .upload-area .icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        .upload-area p {
+            color: #ccd6f6;
+            font-size: 14px;
+        }
+        .upload-area .hint {
+            color: #8892b0;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        #fileInput {
+            display: none;
+        }
+        .progress-section {
+            display: none;
+            margin-top: 24px;
+            text-align: left;
+        }
+        .progress-section.active {
+            display: block;
+        }
+        .stage-text {
+            color: #ccd6f6;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+        .progress-bar-bg {
+            width: 100%;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #64ffda, #00b4d8);
+            border-radius: 3px;
+            transition: width 0.5s ease;
+        }
+        .progress-status {
+            color: #64ffda;
+            font-size: 13px;
+            margin-top: 6px;
+        }
+        .error-text {
+            color: #ff6b6b;
+            font-size: 14px;
+            margin-top: 12px;
+        }
+        .features {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 30px;
+        }
+        .feature {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            padding: 16px 12px;
+            text-align: center;
+        }
+        .feature .icon { font-size: 24px; margin-bottom: 6px; }
+        .feature h4 { color: #fff; font-size: 13px; margin-bottom: 4px; }
+        .feature p { color: #8892b0; font-size: 11px; }
+        .badge {
             display: inline-block;
-            width: 50px;
-            height: 50px;
-            background: #bb86fc;
-            color: #000;
-            border-radius: 50%;
-            line-height: 50px;
-            font-weight: bold;
-            font-size: 1.4rem;
-            margin-bottom: 15px;
+            background: rgba(100,255,218,0.15);
+            color: #64ffda;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            margin-top: 4px;
         }
-        .step-card h3 { color: #fff; margin-bottom: 10px; }
-        .step-card p { color: #aaa; font-size: 0.95rem; }
-        
-        .footer { text-align: center; padding: 40px 20px; color: #666; font-size: 0.85rem; border-top: 1px solid #222; }
-        .footer a { color: #bb86fc; text-decoration: none; }
-        
         @media (max-width: 600px) {
-            .hero h1 { font-size: 1.8rem; }
-            .upload-zone { padding: 40px 20px; }
+            .features { grid-template-columns: 1fr; }
+            .container { padding: 24px; }
+            h1 { font-size: 22px; }
         }
     </style>
 </head>
 <body>
-    <section class="hero">
-        <h1>Проверьте резюме на <span class="highlight">ATS-совместимость</span> за 30 секунд</h1>
-        <p>80% резюме отсеиваются роботами до того, как их увидит HR. Узнайте, пройдёт ли ваше.</p>
-        
-        <div class="upload-zone" id="uploadZone">
+    <div class="container">
+        <div class="logo">📄</div>
+        <h1>ResumeEasy</h1>
+        <p class="subtitle">Ваше резюме глазами ATS-робота</p>
+
+        <div class="upload-area" id="dropZone">
             <div class="icon">📤</div>
-            <div class="text">Перетащите PDF-резюме сюда</div>
-            <div class="subtext">или нажмите, чтобы выбрать файл (до 10 МБ)</div>
-            <input type="file" id="fileInput" accept=".pdf">
+            <p><strong>Перетащите PDF-резюме сюда</strong></p>
+            <p style="margin-top:6px;color:#8892b0;">или нажмите, чтобы выбрать файл (до 10 МБ)</p>
+            <div class="hint">📎 Поддерживаются только PDF</div>
         </div>
-        
-        <div class="status" id="status">
-            <p id="statusText">⏳ Анализируем резюме...</p>
-            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
-        </div>
-    </section>
+        <input type="file" id="fileInput" accept=".pdf">
 
-    <section class="steps">
-        <h2>Как это работает</h2>
-        <div class="steps-grid">
-            <div class="step-card">
-                <div class="num">1</div>
-                <h3>Загружаете PDF</h3>
-                <p>Перетащите файл или выберите его на устройстве. Ваше резюме в полной безопасности.</p>
+        <div class="progress-section" id="progressSection">
+            <div class="stage-text" id="stageText">⏳ Подготовка...</div>
+            <div class="progress-bar-bg">
+                <div class="progress-bar-fill" id="progressFill"></div>
             </div>
-            <div class="step-card">
-                <div class="num">2</div>
-                <h3>AI анализирует</h3>
-                <p>Нейросеть проверяет резюме на совместимость с ATS-системами (hh.ru, Workday).</p>
+            <div class="progress-status" id="progressStatus">0%</div>
+        </div>
+
+        <div class="error-text" id="errorText"></div>
+
+        <div class="features">
+            <div class="feature">
+                <div class="icon">🔍</div>
+                <h4>ATS-совместимость</h4>
+                <p>Проверка под hh.ru</p>
+                <span class="badge">⭐ ТОП-10 слов</span>
             </div>
-            <div class="step-card">
-                <div class="num">3</div>
-                <h3>Получаете отчёт</h3>
-                <p>Чек-лист правок, улучшенное резюме и сопроводительное письмо — всё готово для отклика.</p>
+            <div class="feature">
+                <div class="icon">📋</div>
+                <h4>Чек-лист правок</h4>
+                <p>6+ конкретных улучшений</p>
+                <span class="badge">⚡ 30 сек</span>
+            </div>
+            <div class="feature">
+                <div class="icon">✨</div>
+                <h4>Улучшенное резюме</h4>
+                <p>Готовая версия</p>
+                <span class="badge">✅ 1 клик</span>
             </div>
         </div>
-    </section>
-
-    <div class="footer">
-        <p>© 2026 <a href="https://t.me/your_bot" target="_blank">ResumeEasy Bot</a> — Ваш персональный ATS-эксперт</p>
     </div>
 
     <script>
-        const zone = document.getElementById('uploadZone');
-        const input = document.getElementById('fileInput');
-        const status = document.getElementById('status');
-        const statusText = document.getElementById('statusText');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const progressSection = document.getElementById('progressSection');
         const progressFill = document.getElementById('progressFill');
+        const progressStatus = document.getElementById('progressStatus');
+        const stageText = document.getElementById('stageText');
+        const errorText = document.getElementById('errorText');
 
-        zone.addEventListener('click', () => input.click());
-        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
-        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
-        zone.addEventListener('drop', (e) => {
+        // Клик для выбора файла
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        // Drag-and-drop
+        dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
-            zone.classList.remove('drag-over');
-            handleFile(e.dataTransfer.files[0]);
+            dropZone.classList.add('dragover');
         });
-        input.addEventListener('change', (e) => handleFile(e.target.files[0]));
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length) {
+                handleFile(e.target.files[0]);
+            }
+        });
 
         function handleFile(file) {
-            if (!file) return;
-            if (!file.name.toLowerCase().endsWith('.pdf')) {
-                alert('Принимаются только PDF файлы');
-                return;
-            }
-            if (file.size > 10 * 1024 * 1024) {
-                alert('Файл больше 10 МБ');
-                return;
-            }
-            uploadFile(file);
-        }
+            // Сброс ошибок
+            errorText.textContent = '';
 
-        async function uploadFile(file) {
-            status.classList.add('active');
-            statusText.innerText = '⏳ Анализируем резюме...';
-            progressFill.style.width = '30%';
+            // Проверка на PDF
+            if (!file.name.toLowerCase().endsWith('.pdf')) {
+                errorText.textContent = '❌ Пожалуйста, загрузите файл в формате PDF.';
+                return;
+            }
+
+            if (file.size > 10 * 1024 * 1024) {
+                errorText.textContent = '❌ Файл больше 10 МБ. Пожалуйста, уменьшите размер.';
+                return;
+            }
+
+            // Показываем прогресс
+            progressSection.classList.add('active');
+            updateProgress(0, '⏳ Начинаю анализ...');
 
             const formData = new FormData();
             formData.append('file', file);
 
-            try {
-                progressFill.style.width = '60%';
-                const response = await fetch('/api/analyze', { method: 'POST', body: formData });
-                progressFill.style.width = '90%';
-                const data = await response.json();
-                
-                if (data.redirect) {
-                    progressFill.style.width = '100%';
-                    statusText.innerText = '✅ Анализ готов! Переадресация...';
-                    setTimeout(() => { window.location.href = data.redirect; }, 500);
-                } else {
-                    statusText.innerText = '❌ ' + (data.error || 'Ошибка');
-                    progressFill.style.width = '0%';
+            // Используем fetch с потоком (Server-Sent Events)
+            fetch('/api/analyze-stream', {
+                method: 'POST',
+                body: formData
+            }).then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+
+                function readStream() {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
+                            // Если поток завершился без редиректа — ошибка
+                            if (!window._redirected) {
+                                updateProgress(0, '❌ Ошибка: сервер не вернул результат');
+                            }
+                            return;
+                        }
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                try {
+                                    const data = JSON.parse(line.slice(6));
+                                    if (data.stage !== undefined) {
+                                        updateProgress(data.progress || 0, data.stage);
+                                    }
+                                    if (data.redirect) {
+                                        window._redirected = true;
+                                        window.location.href = data.redirect;
+                                    }
+                                    if (data.error) {
+                                        updateProgress(0, '❌ ' + data.error);
+                                        errorText.textContent = '❌ ' + data.error;
+                                    }
+                                } catch (e) {
+                                    console.warn('Parse error:', e);
+                                }
+                            }
+                        }
+                        readStream();
+                    });
                 }
-            } catch (err) {
-                statusText.innerText = '❌ Ошибка соединения. Попробуйте ещё раз.';
-                progressFill.style.width = '0%';
-            }
+                readStream();
+            }).catch(err => {
+                console.error('Fetch error:', err);
+                updateProgress(0, '❌ Ошибка соединения с сервером');
+                errorText.textContent = '❌ Ошибка соединения с сервером. Попробуйте позже.';
+            });
+        }
+
+        function updateProgress(percent, text) {
+            progressFill.style.width = percent + '%';
+            progressStatus.textContent = Math.round(percent) + '%';
+            stageText.textContent = text;
         }
     </script>
 </body>
