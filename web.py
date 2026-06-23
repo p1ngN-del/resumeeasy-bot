@@ -1,9 +1,8 @@
-import json
-from flask import Response
 import uuid
 import logging
+import json
 from datetime import datetime
-from flask import Blueprint, request, render_template_string, jsonify
+from flask import Blueprint, request, render_template_string, jsonify, Response
 
 from database import save_analysis, save_user, get_db
 from ai import analyze_part
@@ -117,7 +116,9 @@ def api_analyze():
         return jsonify({
             "error": f"Ошибка сервера: {str(e)[:100]}"
         }), 500
-        @web_bp.route('/api/analyze-stream', methods=['POST'])
+
+
+@web_bp.route('/api/analyze-stream', methods=['POST'])
 def api_analyze_stream():
     """Загрузка PDF с сайта с прогрессом"""
 
@@ -164,7 +165,13 @@ def api_analyze_stream():
 
             yield f"data: {json.dumps({'stage': 'Сохраняю отчёт...', 'progress': 80})}\n\n"
 
-            save_analysis(web_user_id, resume_text, data.get('ats_score', 0), data.get('overall_score', 0), "web_upload")
+            save_analysis(
+                web_user_id,
+                resume_text,
+                data.get('ats_score', 0),
+                data.get('overall_score', 0),
+                "web_upload"
+            )
 
             report_id = str(uuid.uuid4())
             report_cache[report_id] = {
