@@ -4,25 +4,6 @@ from config import logger
 from database import init_db
 from handlers import register_routes
 from web import web_bp
-import sqlite3
-from datetime import datetime
-
-# ===== КОНФИГУРАЦИЯ =====
-DB_NAME = "resumeeasy.db"  # Имя файла БД (должно совпадать с database.py)
-    
-    # Проверяем, есть ли пользователь
-    cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
-    if not cursor.fetchone():
-        # Создаём пользователя
-        cursor.execute('''
-            INSERT INTO users (user_id, username, first_name, join_date, last_activity)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (user_id, username, first_name, datetime.now().isoformat(), datetime.now().isoformat()))
-        conn.commit()
-        print(f"✅ Создан пользователь {user_id} ({username}) в БД")
-    conn.close()
-    return True
-
 
 app = Flask(__name__)
 
