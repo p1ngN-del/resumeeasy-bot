@@ -1,4 +1,4 @@
-# templates.py — полные шаблоны для всех отчётов
+# templates.py — ОРИГИНАЛЬНЫЙ ДИЗАЙН (как было до сегодня)
 
 REPORT_HTML = """
 <!DOCTYPE html>
@@ -7,32 +7,146 @@ REPORT_HTML = """
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Резюме — полный разбор</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Inter', sans-serif; background: #0b0b1a; color: #e0e0e0; display: flex; justify-content: center; padding: 30px 20px; min-height: 100vh; }
-        .container { max-width: 820px; width: 100%; background: #14142b; border-radius: 28px; padding: 35px 30px; box-shadow: 0 20px 60px rgba(0,0,0,0.7); border: 1px solid rgba(255,255,255,0.06); }
-        h1 { font-size: 28px; font-weight: 700; color: #ffffff; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; }
-        .subhead { color: #8a8aa8; font-size: 15px; border-bottom: 1px solid #2a2a4a; padding-bottom: 18px; margin-bottom: 28px; display: flex; justify-content: space-between; flex-wrap: wrap; }
-        .score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
-        .score-card { background: #1d1d3a; border-radius: 18px; padding: 18px 20px; text-align: center; border: 1px solid #2a2a50; }
-        .progress-ring { width: 70px; height: 70px; border-radius: 50%; background: conic-gradient(#4f8cf7 var(--pct, 0%), #2a2a50 var(--pct, 0%)); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; color: #fff; margin: 0 auto 8px; }
-        .score-card .label { font-size: 13px; color: #9a9ac0; margin-top: 4px; }
-        .section { margin: 28px 0 16px; }
-        .section h2 { font-size: 20px; font-weight: 600; color: #fff; margin-bottom: 12px; display: flex; align-items: center; gap: 10px; }
-        .section h2 span { background: #2a2a4a; padding: 2px 12px; border-radius: 40px; font-size: 13px; font-weight: 400; color: #b0b0d0; }
-        .tag-group { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0 12px; }
-        .tag { background: #25254a; padding: 6px 16px; border-radius: 30px; font-size: 14px; color: #c8c8f0; border: 1px solid #353560; }
-        .fix-item { background: #1a1a36; border-radius: 14px; padding: 14px 18px; margin-bottom: 10px; border-left: 4px solid #4f8cf7; display: flex; gap: 12px; align-items: flex-start; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a1a;
+            color: #ccd6f6;
+            display: flex;
+            justify-content: center;
+            padding: 30px 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 820px;
+            width: 100%;
+            background: #14142b;
+            border-radius: 28px;
+            padding: 35px 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+            border: 1px solid rgba(255,255,255,0.06);
+        }
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .subhead {
+            color: #8a8aa8;
+            font-size: 15px;
+            border-bottom: 1px solid #2a2a4a;
+            padding-bottom: 18px;
+            margin-bottom: 28px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .score-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        .score-card {
+            background: #1d1d3a;
+            border-radius: 18px;
+            padding: 18px 20px;
+            text-align: center;
+            border: 1px solid #2a2a50;
+        }
+        .score-number {
+            font-size: 42px;
+            font-weight: 700;
+            color: #64ffda;
+        }
+        .score-label {
+            font-size: 14px;
+            color: #8892b0;
+            margin-top: 4px;
+        }
+        .score-sub {
+            font-size: 13px;
+            color: #7a7aaa;
+            margin-top: 6px;
+        }
+        .section {
+            margin: 28px 0 16px;
+        }
+        .section h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section h2 span {
+            background: #2a2a4a;
+            padding: 2px 12px;
+            border-radius: 40px;
+            font-size: 13px;
+            font-weight: 400;
+            color: #b0b0d0;
+        }
+        .tag-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 6px 0 12px;
+        }
+        .tag {
+            background: #25254a;
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-size: 14px;
+            color: #c8c8f0;
+            border: 1px solid #353560;
+        }
+        .fix-item {
+            background: #1a1a36;
+            border-radius: 14px;
+            padding: 14px 18px;
+            margin-bottom: 10px;
+            border-left: 4px solid #4f8cf7;
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+        }
         .fix-item .icon { font-size: 20px; margin-top: 2px; }
         .fix-item .content { flex: 1; }
         .fix-item .content .title { font-weight: 600; color: #fff; }
         .fix-item .content .desc { color: #b0b0d0; font-size: 14px; margin-top: 3px; }
         .vacancy-list { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0; }
         .vacancy-item { background: #1a1a38; padding: 8px 18px; border-radius: 30px; border: 1px solid #33335a; font-size: 14px; }
-        .verdict-box { background: #1d1d3e; border-radius: 18px; padding: 18px 22px; margin: 20px 0 8px; border: 1px solid #2e2e58; font-size: 15px; line-height: 1.6; }
-        .footer-meta { margin-top: 30px; padding-top: 16px; border-top: 1px solid #222244; font-size: 13px; color: #6a6a92; display: flex; justify-content: space-between; flex-wrap: wrap; }
-        @media (max-width: 600px) { .score-grid { grid-template-columns: 1fr; } .container { padding: 20px 16px; } }
+        .verdict-box {
+            background: #1d1d3e;
+            border-radius: 18px;
+            padding: 18px 22px;
+            margin: 20px 0 8px;
+            border: 1px solid #2e2e58;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        .footer-meta {
+            margin-top: 30px;
+            padding-top: 16px;
+            border-top: 1px solid #222244;
+            font-size: 13px;
+            color: #6a6a92;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        @media (max-width: 600px) {
+            .score-grid { grid-template-columns: 1fr; }
+            .container { padding: 20px 16px; }
+        }
     </style>
 </head>
 <body>
@@ -42,18 +156,20 @@ REPORT_HTML = """
             <span>📅 {{ date }}</span>
             <span>⚡ ID: {{ report_id[:8] }}</span>
         </div>
+
         <div class="score-grid">
             <div class="score-card">
-                <div class="progress-ring" style="--pct: {{ ats }}%;">{{ ats }}</div>
-                <div class="label">🤖 ATS-совместимость</div>
-                <div style="font-size:13px; color:#7a7aaa; margin-top:6px;">Оценка парсинга hh.ru</div>
+                <div class="score-number">{{ ats }}</div>
+                <div class="score-label">🤖 ATS-совместимость</div>
+                <div class="score-sub">Оценка парсинга hh.ru</div>
             </div>
             <div class="score-card">
-                <div class="progress-ring" style="--pct: {{ overall }}%;">{{ overall }}</div>
-                <div class="label">📊 Общая оценка контента</div>
-                <div style="font-size:13px; color:#7a7aaa; margin-top:6px;">Сила текста и структура</div>
+                <div class="score-number">{{ overall }}</div>
+                <div class="score-label">📊 Общая оценка контента</div>
+                <div class="score-sub">Сила текста и структура</div>
             </div>
         </div>
+
         <div class="section">
             <h2>🔑 Ключевые слова <span>ATS-ready</span></h2>
             <div class="tag-group">
@@ -62,6 +178,7 @@ REPORT_HTML = """
                 {% endfor %}
             </div>
         </div>
+
         {% if headlines %}
         <div class="section">
             <h2>🏷️ Варианты заголовка</h2>
@@ -72,10 +189,11 @@ REPORT_HTML = """
             </ul>
         </div>
         {% endif %}
+
         <div class="section">
             <h2>🔧 Чек-лист правок</h2>
             {% if critical_fixes %}
-            <div style="margin: 12px 0 8px; font-weight: 600; color: #f28b82;">Критические</div>
+            <div style="margin: 12px 0 8px; font-weight: 600; color: #f28b82;">⚠️ Критические</div>
             {% for fix in critical_fixes %}
             <div class="fix-item">
                 <div class="icon">⚠️</div>
@@ -87,7 +205,7 @@ REPORT_HTML = """
             {% endfor %}
             {% endif %}
             {% if metrics_fixes %}
-            <div style="margin: 12px 0 8px; font-weight: 600; color: #fdbc6b;">Метрики и цифры</div>
+            <div style="margin: 12px 0 8px; font-weight: 600; color: #fdbc6b;">📊 Метрики и цифры</div>
             {% for fix in metrics_fixes %}
             <div class="fix-item" style="border-left-color: #fdbc6b;">
                 <div class="icon">📊</div>
@@ -99,7 +217,7 @@ REPORT_HTML = """
             {% endfor %}
             {% endif %}
             {% if style_fixes %}
-            <div style="margin: 12px 0 8px; font-weight: 600; color: #81c995;">Стиль и формулировки</div>
+            <div style="margin: 12px 0 8px; font-weight: 600; color: #81c995;">✏️ Стиль и формулировки</div>
             {% for fix in style_fixes %}
             <div class="fix-item" style="border-left-color: #81c995;">
                 <div class="icon">✏️</div>
@@ -111,12 +229,14 @@ REPORT_HTML = """
             {% endfor %}
             {% endif %}
         </div>
+
         {% if hh_rec %}
         <div class="section">
             <h2>📌 Рекомендации по загрузке на hh.ru</h2>
             <div style="background: #181838; padding: 16px 20px; border-radius: 16px; white-space: pre-wrap; line-height: 1.7;">{{ hh_rec }}</div>
         </div>
         {% endif %}
+
         {% if match_vac %}
         <div class="section">
             <h2>🎯 Подходящие вакансии</h2>
@@ -127,10 +247,12 @@ REPORT_HTML = """
             </div>
         </div>
         {% endif %}
+
         <div class="section">
             <h2>📋 Финальный вердикт</h2>
             <div class="verdict-box">{{ verdict }}</div>
         </div>
+
         <div class="footer-meta">
             <span>🤖 ResumeEasy — ATS-эксперт</span>
             <span>🧠 Анализ проведён {{ date }}</span>
@@ -144,16 +266,16 @@ MATCH_HTML = """
 <!DOCTYPE html>
 <html>
 <head><title>Сравнение с вакансией</title></head>
-<body style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #fff;">
-    <h1>🎯 Сравнение с вакансией</h1>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #ccd6f6;">
+    <h1 style="color:#fff;">🎯 Сравнение с вакансией</h1>
     <p><strong>Совпадение:</strong> {{ match }}%</p>
-    <h2>Отсутствующие навыки</h2>
+    <h2 style="color:#fff;">Отсутствующие навыки</h2>
     <ul>
     {% for skill in missing %}
         <li>{{ skill }}</li>
     {% endfor %}
     </ul>
-    <h2>Рекомендации</h2>
+    <h2 style="color:#fff;">Рекомендации</h2>
     <ul>
     {% for rec in recs %}
         <li>{{ rec }}</li>
@@ -168,9 +290,9 @@ COVER_HTML = """
 <!DOCTYPE html>
 <html>
 <head><title>Сопроводительное письмо</title></head>
-<body style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #fff;">
-    <h1>📝 Сопроводительное письмо</h1>
-    <pre style="white-space: pre-wrap; word-wrap: break-word; background: rgba(255,255,255,0.05); padding: 20px; border-radius: 12px;">{{ letter }}</pre>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #ccd6f6;">
+    <h1 style="color:#fff;">📝 Сопроводительное письмо</h1>
+    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #1a1a36; padding: 20px; border-radius: 12px; color: #ccd6f6; border: 1px solid #2a2a4a;">{{ letter }}</pre>
 </body>
 </html>
 """
@@ -179,15 +301,15 @@ IMPROVED_HTML = """
 <!DOCTYPE html>
 <html>
 <head><title>Улучшенное резюме</title></head>
-<body style="font-family: sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #fff;">
-    <h1>✨ Улучшенное резюме</h1>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #ccd6f6;">
+    <h1 style="color:#fff;">✨ Улучшенное резюме</h1>
     <p><strong>Дата:</strong> {{ date }}</p>
     <p><strong>ATS-оценка:</strong> {{ ats }}/100</p>
     <p><strong>Общая оценка:</strong> {{ overall }}/100</p>
-    <h2>Блоки</h2>
+    <h2 style="color:#fff;">Блоки</h2>
     {% for block in blocks %}
-        <h3>{{ block.title }}</h3>
-        <pre style="white-space: pre-wrap; word-wrap: break-word; background: rgba(255,255,255,0.05); padding: 12px; border-radius: 8px;">{{ block.text }}</pre>
+        <h3 style="color:#fff;">{{ block.title }}</h3>
+        <pre style="white-space: pre-wrap; word-wrap: break-word; background: #1a1a36; padding: 12px; border-radius: 8px; color: #ccd6f6; border: 1px solid #2a2a4a;">{{ block.text }}</pre>
     {% endfor %}
     <p><strong>Итог:</strong> {{ summary }}</p>
 </body>
@@ -198,30 +320,30 @@ ADMIN_HTML = """
 <!DOCTYPE html>
 <html>
 <head><title>Админ-панель</title></head>
-<body style="font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #fff;">
-    <h1>📊 Админ-панель</h1>
-    <p>Обновлено: {{ now }}</p>
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #ccd6f6;">
+    <h1 style="color:#fff;">📊 Админ-панель</h1>
+    <p style="color:#8892b0;">Обновлено: {{ now }}</p>
     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 20px 0;">
-        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px;">
-            <h3>👥 Пользователей</h3>
-            <p style="font-size: 32px;">{{ total_users }}</p>
+        <div style="background: #14142b; padding: 16px; border-radius: 12px; border: 1px solid #2a2a4a;">
+            <h3 style="color:#8892b0;">👥 Пользователей</h3>
+            <p style="font-size: 32px; color:#64ffda;">{{ total_users }}</p>
         </div>
-        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px;">
-            <h3>🆕 За сегодня</h3>
-            <p style="font-size: 32px;">{{ new_today }}</p>
+        <div style="background: #14142b; padding: 16px; border-radius: 12px; border: 1px solid #2a2a4a;">
+            <h3 style="color:#8892b0;">🆕 За сегодня</h3>
+            <p style="font-size: 32px; color:#64ffda;">{{ new_today }}</p>
         </div>
-        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px;">
-            <h3>📄 Анализов</h3>
-            <p style="font-size: 32px;">{{ total_analyses }}</p>
+        <div style="background: #14142b; padding: 16px; border-radius: 12px; border: 1px solid #2a2a4a;">
+            <h3 style="color:#8892b0;">📄 Анализов</h3>
+            <p style="font-size: 32px; color:#64ffda;">{{ total_analyses }}</p>
         </div>
-        <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: 12px;">
-            <h3>📈 Активных (7 дней)</h3>
-            <p style="font-size: 32px;">{{ active_week }}</p>
+        <div style="background: #14142b; padding: 16px; border-radius: 12px; border: 1px solid #2a2a4a;">
+            <h3 style="color:#8892b0;">📈 Активных (7 дней)</h3>
+            <p style="font-size: 32px; color:#64ffda;">{{ active_week }}</p>
         </div>
     </div>
-    <h2>Последние пользователи</h2>
-    <table style="width: 100%; border-collapse: collapse; text-align: left;">
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+    <h2 style="color:#fff;">Последние пользователи</h2>
+    <table style="width: 100%; border-collapse: collapse; text-align: left; color:#ccd6f6;">
+        <tr style="border-bottom: 1px solid #2a2a4a;">
             <th style="padding: 8px;">ID</th>
             <th style="padding: 8px;">Username</th>
             <th style="padding: 8px;">Имя</th>
@@ -229,7 +351,7 @@ ADMIN_HTML = """
             <th style="padding: 8px;">Средний ATS</th>
         </tr>
         {% for user in users %}
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <tr style="border-bottom: 1px solid #1a1a36;">
             <td style="padding: 8px;">{{ user.user_id }}</td>
             <td style="padding: 8px;">{{ user.username or '-' }}</td>
             <td style="padding: 8px;">{{ user.first_name or '-' }}</td>
@@ -246,11 +368,11 @@ ADMIN_USERS_HTML = """
 <!DOCTYPE html>
 <html>
 <head><title>Все пользователи</title></head>
-<body style="font-family: sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #fff;">
-    <h1>👥 Все пользователи</h1>
-    <p><a href="/admin" style="color: #64ffda;">← Назад</a></p>
-    <table style="width: 100%; border-collapse: collapse; text-align: left;">
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #ccd6f6;">
+    <h1 style="color:#fff;">👥 Все пользователи</h1>
+    <p><a href="/admin" style="color: #64ffda; text-decoration: none;">← Назад</a></p>
+    <table style="width: 100%; border-collapse: collapse; text-align: left; color:#ccd6f6;">
+        <tr style="border-bottom: 1px solid #2a2a4a;">
             <th style="padding: 8px;">ID</th>
             <th style="padding: 8px;">Username</th>
             <th style="padding: 8px;">Имя</th>
@@ -259,7 +381,7 @@ ADMIN_USERS_HTML = """
             <th style="padding: 8px;">Средний ATS</th>
         </tr>
         {% for user in users %}
-        <tr style="border-bottom: 1px solid rgba(255,255,255,0.05);">
+        <tr style="border-bottom: 1px solid #1a1a36;">
             <td style="padding: 8px;">{{ user.user_id }}</td>
             <td style="padding: 8px;">{{ user.username or '-' }}</td>
             <td style="padding: 8px;">{{ user.first_name or '-' }}</td>
