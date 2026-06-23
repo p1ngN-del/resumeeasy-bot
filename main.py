@@ -9,12 +9,6 @@ from datetime import datetime
 
 # ===== КОНФИГУРАЦИЯ =====
 DB_NAME = "resumeeasy.db"  # Имя файла БД (должно совпадать с database.py)
-
-# ===== ВСТАВИТЬ ПОСЛЕ ИМПОРТОВ =====
-def ensure_user_exists(user_id, username="unknown", first_name=""):
-    """Проверяет, есть ли пользователь в БД. Если нет — создаёт."""
-    conn = sqlite3.connect(DB_NAME)
-    cursor = conn.cursor()
     
     # Проверяем, есть ли пользователь
     cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user_id,))
