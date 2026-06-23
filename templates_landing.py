@@ -1,3 +1,5 @@
+# templates_landing.py — ОРИГИНАЛЬНЫЙ ДИЗАЙН САЙТА (как был до сегодня)
+
 LANDING_HTML = """
 <!DOCTYPE html>
 <html lang="ru">
