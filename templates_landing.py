@@ -112,28 +112,24 @@ LANDING_HTML = """
     </div>
 
     <script>
-        var dropZone = document.getElementById('dropZone');
-        var fileInput = document.getElementById('fileInput');
-        var progressSection = document.getElementById('progressSection');
-        var progressFill = document.getElementById('progressFill');
-        var progressStatus = document.getElementById('progressStatus');
-        var stageText = document.getElementById('stageText');
-        var errorText = document.getElementById('errorText');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const progressSection = document.getElementById('progressSection');
+        const progressFill = document.getElementById('progressFill');
+        const progressStatus = document.getElementById('progressStatus');
+        const stageText = document.getElementById('stageText');
+        const errorText = document.getElementById('errorText');
 
-        dropZone.addEventListener('click', function() {
-            fileInput.click();
-        });
+        dropZone.addEventListener('click', () => fileInput.click());
 
-        dropZone.addEventListener('dragover', function(e) {
+        dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropZone.classList.add('dragover');
         });
-
-        dropZone.addEventListener('dragleave', function() {
+        dropZone.addEventListener('dragleave', () => {
             dropZone.classList.remove('dragover');
         });
-
-        dropZone.addEventListener('drop', function(e) {
+        dropZone.addEventListener('drop', (e) => {
             e.preventDefault();
             dropZone.classList.remove('dragover');
             if (e.dataTransfer.files.length) {
@@ -141,7 +137,7 @@ LANDING_HTML = """
             }
         });
 
-        fileInput.addEventListener('change', function(e) {
+        fileInput.addEventListener('change', (e) => {
             if (e.target.files.length) {
                 handleFile(e.target.files[0]);
             }
@@ -163,32 +159,30 @@ LANDING_HTML = """
             progressSection.classList.add('active');
             updateProgress(0, '⏳ Начинаю анализ...');
 
-            var formData = new FormData();
+            const formData = new FormData();
             formData.append('file', file);
 
-            // ★★★ ГЛАВНОЕ ИСПРАВЛЕНИЕ: ПОЛНЫЙ URL БЭКЕНДА ★★★
-            fetch('https://resumeeasy-bot-production.up.railway.app/api/analyze-stream', {
+            fetch('/api/analyze-stream', {
                 method: 'POST',
                 body: formData
-            }).then(function(response) {
-                var reader = response.body.getReader();
-                var decoder = new TextDecoder();
+            }).then(response => {
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
 
                 function readStream() {
-                    reader.read().then(function(result) {
-                        if (result.done) {
+                    reader.read().then(({ done, value }) => {
+                        if (done) {
                             if (!window._redirected) {
                                 updateProgress(0, '❌ Ошибка: сервер не вернул результат');
                             }
                             return;
                         }
-                        var chunk = decoder.decode(result.value);
-                        var lines = chunk.split('\n');
-                        for (var i = 0; i < lines.length; i++) {
-                            var line = lines[i];
+                        const chunk = decoder.decode(value);
+                        const lines = chunk.split('\n');
+                        for (const line of lines) {
                             if (line.startsWith('data: ')) {
                                 try {
-                                    var data = JSON.parse(line.slice(6));
+                                    const data = JSON.parse(line.slice(6));
                                     if (data.stage !== undefined) {
                                         updateProgress(data.progress || 0, data.stage);
                                     }
@@ -209,7 +203,7 @@ LANDING_HTML = """
                     });
                 }
                 readStream();
-            }).catch(function(err) {
+            }).catch(err => {
                 console.error('Fetch error:', err);
                 updateProgress(0, '❌ Ошибка соединения с сервером');
                 errorText.textContent = '❌ Ошибка соединения с сервером. Попробуйте позже.';
