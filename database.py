@@ -1,5 +1,6 @@
 import psycopg2
 import psycopg2.extras
+from datetime import datetime
 from config import DATABASE_URL, logger
 
 def get_db():
@@ -40,6 +41,22 @@ def save_user(user_id, username, first_name):
         (user_id, username, first_name))
     conn.commit()
     conn.close()
+
+def ensure_user_exists(user_id, username="unknown", first_name=""):
+    """Проверяет, есть ли пользователь в БД. Если нет — создаёт."""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
+    if not cursor.fetchone():
+        cursor.execute('''
+            INSERT INTO users (user_id, username, first_name, join_date, last_activity)
+            VALUES (%s, %s, %s, %s, %s)
+        ''', (user_id, username, first_name, datetime.now().isoformat(), datetime.now().isoformat()))
+        conn.commit()
+        logger.info(f"✅ Создан пользователь {user_id} ({username}) в БД")
+    conn.close()
+    return True
 
 def save_analysis(user_id, resume_text, ats, overall, a_type="standard"):
     conn = get_db()
