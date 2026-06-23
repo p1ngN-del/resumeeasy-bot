@@ -27,21 +27,9 @@ LANDING_HTML = """
             box-shadow: 0 20px 60px rgba(0,0,0,0.5);
             text-align: center;
         }
-        .logo {
-            font-size: 48px;
-            margin-bottom: 10px;
-        }
-        h1 {
-            color: #fff;
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-        .subtitle {
-            color: #8892b0;
-            font-size: 16px;
-            margin-bottom: 30px;
-        }
+        .logo { font-size: 48px; margin-bottom: 10px; }
+        h1 { color: #fff; font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+        .subtitle { color: #8892b0; font-size: 16px; margin-bottom: 30px; }
         .upload-area {
             border: 2px dashed rgba(255,255,255,0.2);
             border-radius: 16px;
@@ -50,96 +38,31 @@ LANDING_HTML = """
             transition: all 0.3s ease;
             background: rgba(255,255,255,0.03);
         }
-        .upload-area:hover {
-            border-color: #64ffda;
-            background: rgba(100,255,218,0.05);
-        }
-        .upload-area.dragover {
-            border-color: #64ffda;
-            background: rgba(100,255,218,0.1);
-        }
-        .upload-area .icon {
-            font-size: 48px;
-            margin-bottom: 12px;
-        }
-        .upload-area p {
-            color: #ccd6f6;
-            font-size: 14px;
-        }
-        .upload-area .hint {
-            color: #8892b0;
-            font-size: 12px;
-            margin-top: 8px;
-        }
-        #fileInput {
-            display: none;
-        }
-        .progress-section {
-            display: none;
-            margin-top: 24px;
-            text-align: left;
-        }
-        .progress-section.active {
-            display: block;
-        }
-        .stage-text {
-            color: #ccd6f6;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-        .progress-bar-bg {
-            width: 100%;
-            height: 6px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-        .progress-bar-fill {
-            height: 100%;
-            width: 0%;
-            background: linear-gradient(90deg, #64ffda, #00b4d8);
-            border-radius: 3px;
-            transition: width 0.5s ease;
-        }
-        .progress-status {
-            color: #64ffda;
-            font-size: 13px;
-            margin-top: 6px;
-        }
-        .error-text {
-            color: #ff6b6b;
-            font-size: 14px;
-            margin-top: 12px;
-        }
+        .upload-area:hover { border-color: #64ffda; background: rgba(100,255,218,0.05); }
+        .upload-area.dragover { border-color: #64ffda; background: rgba(100,255,218,0.1); }
+        .upload-area .icon { font-size: 48px; margin-bottom: 12px; }
+        .upload-area p { color: #ccd6f6; font-size: 14px; }
+        .upload-area .hint { color: #8892b0; font-size: 12px; margin-top: 8px; }
+        #fileInput { display: none; }
+        .progress-section { display: none; margin-top: 24px; text-align: left; }
+        .progress-section.active { display: block; }
+        .stage-text { color: #ccd6f6; font-size: 14px; margin-bottom: 8px; }
+        .progress-bar-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+        .progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #64ffda, #00b4d8); border-radius: 3px; transition: width 0.5s ease; }
+        .progress-status { color: #64ffda; font-size: 13px; margin-top: 6px; }
+        .error-text { color: #ff6b6b; font-size: 14px; margin-top: 12px; }
         .features {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 16px;
             margin-top: 30px;
         }
-        .feature {
-            background: rgba(255,255,255,0.05);
-            border-radius: 12px;
-            padding: 16px 12px;
-            text-align: center;
-        }
+        .feature { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px 12px; text-align: center; }
         .feature .icon { font-size: 24px; margin-bottom: 6px; }
         .feature h4 { color: #fff; font-size: 13px; margin-bottom: 4px; }
         .feature p { color: #8892b0; font-size: 11px; }
-        .badge {
-            display: inline-block;
-            background: rgba(100,255,218,0.15);
-            color: #64ffda;
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            margin-top: 4px;
-        }
-        @media (max-width: 600px) {
-            .features { grid-template-columns: 1fr; }
-            .container { padding: 24px; }
-            h1 { font-size: 22px; }
-        }
+        .badge { display: inline-block; background: rgba(100,255,218,0.15); color: #64ffda; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-top: 4px; }
+        @media (max-width: 600px) { .features { grid-template-columns: 1fr; } .container { padding: 24px; } h1 { font-size: 22px; } }
     </style>
 </head>
 <body>
@@ -197,10 +120,8 @@ LANDING_HTML = """
         const stageText = document.getElementById('stageText');
         const errorText = document.getElementById('errorText');
 
-        // Клик для выбора файла
         dropZone.addEventListener('click', () => fileInput.click());
 
-        // Drag-and-drop
         dropZone.addEventListener('dragover', (e) => {
             e.preventDefault();
             dropZone.classList.add('dragover');
@@ -223,10 +144,8 @@ LANDING_HTML = """
         });
 
         function handleFile(file) {
-            // Сброс ошибок
             errorText.textContent = '';
 
-            // Проверка на PDF
             if (!file.name.toLowerCase().endsWith('.pdf')) {
                 errorText.textContent = '❌ Пожалуйста, загрузите файл в формате PDF.';
                 return;
@@ -237,14 +156,12 @@ LANDING_HTML = """
                 return;
             }
 
-            // Показываем прогресс
             progressSection.classList.add('active');
             updateProgress(0, '⏳ Начинаю анализ...');
 
             const formData = new FormData();
             formData.append('file', file);
 
-            // Используем fetch с потоком (Server-Sent Events)
             fetch('/api/analyze-stream', {
                 method: 'POST',
                 body: formData
@@ -255,7 +172,6 @@ LANDING_HTML = """
                 function readStream() {
                     reader.read().then(({ done, value }) => {
                         if (done) {
-                            // Если поток завершился без редиректа — ошибка
                             if (!window._redirected) {
                                 updateProgress(0, '❌ Ошибка: сервер не вернул результат');
                             }
