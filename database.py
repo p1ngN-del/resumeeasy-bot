@@ -46,7 +46,6 @@ def ensure_user_exists(user_id, username="unknown", first_name=""):
     """Проверяет, есть ли пользователь в БД. Если нет — создаёт."""
     conn = get_db()
     cursor = conn.cursor()
-    
     cursor.execute("SELECT user_id FROM users WHERE user_id = %s", (user_id,))
     if not cursor.fetchone():
         cursor.execute('''
