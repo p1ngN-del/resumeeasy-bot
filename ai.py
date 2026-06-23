@@ -1,7 +1,7 @@
 import requests
 from config import DEEPSEEK_API_KEY, logger
 
-def analyze_part(resume_text, part_name, timeout=60, custom_prompt=None, job_desc=None):
+def analyze_part(resume_text, part_name, timeout=300, custom_prompt=None, job_desc=None):
     url = "https://api.deepseek.com/v1/chat/completions"
     headers = {"Authorization": f"Bearer {DEEPSEEK_API_KEY}", "Content-Type": "application/json"}
     job_text = job_desc if job_desc else "Не указана"
