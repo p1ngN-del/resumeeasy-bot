@@ -1,4 +1,4 @@
-аimport os
+import os
 import uuid
 import io
 import csv
