@@ -39,6 +39,11 @@ def api_analyze():
         if not data:
             return jsonify({"error": "Не удалось проанализировать."}), 500
         web_user_id = hash(str(datetime.now().timestamp())) % 10000000
+        
+        # ✅ Сначала сохраняем пользователя
+        from database import save_user
+        save_user(web_user_id, 'web_user', 'Web User')
+        
         save_analysis(web_user_id, resume_text, data.get('ats_score', 0), data.get('overall_score', 0), "web_upload")
         report_id = str(uuid.uuid4())
         report_cache[report_id] = {
