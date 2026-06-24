@@ -418,18 +418,31 @@ LANDING_HTML = r"""
 
         async function uploadFile(file) {
             status.classList.add('active');
-            statusText.innerText = '📄 Извлекаю текст из PDF...';
-            progressFill.style.width = '25%';
             error.classList.remove('show');
+            
+            // Плавная анимация прогресс-бара
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                if (progress < 90) {
+                    progress += Math.random() * 5;
+                    if (progress > 90) progress = 90;
+                    progressFill.style.width = progress + '%';
+                }
+            }, 500);
+            
+            statusText.innerText = '📄 Извлекаю текст из PDF...';
             const formData = new FormData();
             formData.append('file', file);
+            
             try {
-                progressFill.style.width = '50%';
-                statusText.innerText = '🧠 Анализирую резюме...';
+                statusText.innerText = '🧠 AI анализирует резюме...';
                 const response = await fetch(API_URL, { method: 'POST', body: formData });
-                progressFill.style.width = '75%';
+                
                 statusText.innerText = '📊 Формирую отчёт...';
                 const data = await response.json();
+                
+                clearInterval(progressInterval);
+                
                 if (data.redirect) {
                     progressFill.style.width = '100%';
                     statusText.innerText = '✅ Анализ готов! Открываем отчёт...';
@@ -437,14 +450,15 @@ LANDING_HTML = r"""
                         window.location.href = 'https://resumeeasy-bot-production.up.railway.app' + data.redirect;
                     }, 500);
                 } else {
+                    progressFill.style.width = '0%';
                     showError(data.error || 'Ошибка анализа. Попробуйте другой файл.');
                     status.classList.remove('active');
-                    progressFill.style.width = '0%';
                 }
             } catch (err) {
+                clearInterval(progressInterval);
+                progressFill.style.width = '0%';
                 showError('Ошибка соединения с сервером. Попробуйте позже.');
                 status.classList.remove('active');
-                progressFill.style.width = '0%';
             }
         }
     </script>
