@@ -1,219 +1,449 @@
-LANDING_HTML = """
+LANDING_HTML = r"""
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ResumeEasy — ATS-проверка резюме</title>
+    <title>ResumeEasy — Проверка резюме на ATS-совместимость</title>
+    <meta name="description" content="Бесплатная проверка резюме на совместимость с ATS-системами. Загрузите PDF и получите чек-лист правок, улучшенное резюме и сопроводительное письмо за 30 секунд.">
+    <meta name="keywords" content="резюме, ATS, проверка резюме, hh.ru, работа, анализ резюме, трудоустройство">
+    <meta name="yandex-verification" content="185fc6dbd37575bb" />
+    <meta property="og:title" content="ResumeEasy — ATS-проверка резюме">
+    <meta property="og:description" content="Проверьте резюме на совместимость с ATS за 30 секунд">
+    <meta property="og:type" content="website">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 50%, #0a0a1a 100%);
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
+        :root {
+            --bg: #0a0a0f;
+            --card: #12121a;
+            --border: #1e1e2e;
+            --purple: #a78bfa;
+            --cyan: #22d3ee;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --red: #f87171;
+            --glow-purple: rgba(167, 139, 250, 0.15);
+            --glow-cyan: rgba(34, 211, 238, 0.10);
         }
-        .container {
-            background: rgba(255,255,255,0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 24px;
-            padding: 40px;
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        #particles {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        .particle {
+            position: absolute;
+            border-radius: 50%;
+            background: var(--purple);
+            opacity: 0.3;
+            animation: floatUp linear infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(100vh) scale(0); opacity: 0; }
+            10% { opacity: 0.4; }
+            90% { opacity: 0.1; }
+            100% { transform: translateY(-10vh) scale(1.5); opacity: 0; }
+        }
+
+        .wrapper {
+            position: relative;
+            z-index: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 60px 24px 80px;
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .hero {
+            text-align: center;
+            margin-bottom: 60px;
+            animation: fadeInUp 0.8s ease-out;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .hero h1 {
+            font-size: clamp(2.2rem, 5vw, 3.6rem);
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            margin-bottom: 20px;
+            color: #fff;
+        }
+        .hero .gradient-text {
+            background: linear-gradient(135deg, var(--purple), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero p {
+            font-size: 1.15rem;
+            color: var(--muted);
             max-width: 600px;
+            margin: 0 auto 40px;
+        }
+
+        .upload-zone {
+            position: relative;
+            border: 2px dashed var(--border);
+            border-radius: 20px;
+            padding: 55px 40px;
+            cursor: pointer;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--card);
+            max-width: 520px;
             width: 100%;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            margin: 0 auto;
+            text-align: center;
+            box-shadow: 0 0 0 0 var(--glow-purple);
+        }
+        .upload-zone:hover,
+        .upload-zone.drag-over {
+            border-color: var(--purple);
+            box-shadow: 0 0 40px var(--glow-purple), 0 0 80px var(--glow-cyan);
+            transform: translateY(-2px);
+        }
+        .upload-zone .icon {
+            font-size: 52px;
+            margin-bottom: 16px;
+            display: inline-block;
+            transition: transform 0.3s;
+        }
+        .upload-zone:hover .icon {
+            transform: scale(1.1);
+        }
+        .upload-zone .text {
+            font-weight: 600;
+            font-size: 1.05rem;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .upload-zone .subtext {
+            color: var(--muted);
+            font-size: 0.9rem;
+        }
+        .upload-zone input {
+            display: none;
+        }
+
+        .status {
+            display: none;
+            margin-top: 24px;
+            text-align: center;
+            max-width: 520px;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .status.active { display: block; animation: fadeInUp 0.3s ease-out; }
+        .status p { color: #fff; margin-bottom: 12px; font-weight: 500; }
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, var(--purple), var(--cyan));
+            border-radius: 10px;
+            transition: width 0.4s ease;
+            box-shadow: 0 0 12px var(--glow-purple);
+        }
+        .error {
+            color: var(--red);
+            margin-top: 12px;
+            display: none;
+            font-size: 0.95rem;
+        }
+        .error.show { display: block; }
+
+        .section-title {
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            margin: 70px 0 15px;
+        }
+        .section-sub {
+            text-align: center;
+            color: var(--muted);
+            margin-bottom: 50px;
+            font-size: 1.05rem;
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            width: 100%;
+        }
+        .feature-card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px 28px;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: radial-gradient(circle at top left, var(--glow-purple), transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .feature-card:hover {
+            border-color: var(--purple);
+            transform: translateY(-4px);
+            box-shadow: 0 16px 40px rgba(0,0,0,0.5), 0 0 30px var(--glow-purple);
+        }
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+        .feature-card .icon {
+            font-size: 40px;
+            margin-bottom: 16px;
+            position: relative;
+            z-index: 1;
+        }
+        .feature-card h3 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
+        }
+        .feature-card p {
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            position: relative;
+            z-index: 1;
+        }
+
+        .stats-row {
+            display: flex;
+            gap: 40px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 60px 0;
+        }
+        .stat-item {
             text-align: center;
         }
-        .logo { font-size: 48px; margin-bottom: 10px; }
-        h1 { color: #fff; font-size: 28px; font-weight: 700; margin-bottom: 8px; }
-        .subtitle { color: #8892b0; font-size: 16px; margin-bottom: 30px; }
-        .upload-area {
-            border: 2px dashed rgba(255,255,255,0.2);
-            border-radius: 16px;
-            padding: 40px 20px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            background: rgba(255,255,255,0.03);
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--purple), var(--cyan));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
         }
-        .upload-area:hover { border-color: #64ffda; background: rgba(100,255,218,0.05); }
-        .upload-area.dragover { border-color: #64ffda; background: rgba(100,255,218,0.1); }
-        .upload-area .icon { font-size: 48px; margin-bottom: 12px; }
-        .upload-area p { color: #ccd6f6; font-size: 14px; }
-        .upload-area .hint { color: #8892b0; font-size: 12px; margin-top: 8px; }
-        #fileInput { display: none; }
-        .progress-section { display: none; margin-top: 24px; text-align: left; }
-        .progress-section.active { display: block; }
-        .stage-text { color: #ccd6f6; font-size: 14px; margin-bottom: 8px; }
-        .progress-bar-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
-        .progress-bar-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #64ffda, #00b4d8); border-radius: 3px; transition: width 0.5s ease; }
-        .progress-status { color: #64ffda; font-size: 13px; margin-top: 6px; }
-        .error-text { color: #ff6b6b; font-size: 14px; margin-top: 12px; }
-        .features {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 30px;
+        .stat-label {
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-top: 4px;
         }
-        .feature { background: rgba(255,255,255,0.05); border-radius: 12px; padding: 16px 12px; text-align: center; }
-        .feature .icon { font-size: 24px; margin-bottom: 6px; }
-        .feature h4 { color: #fff; font-size: 13px; margin-bottom: 4px; }
-        .feature p { color: #8892b0; font-size: 11px; }
-        .badge { display: inline-block; background: rgba(100,255,218,0.15); color: #64ffda; padding: 4px 12px; border-radius: 20px; font-size: 12px; margin-top: 4px; }
-        @media (max-width: 600px) { .features { grid-template-columns: 1fr; } .container { padding: 24px; } h1 { font-size: 22px; } }
+
+        .footer {
+            text-align: center;
+            padding: 40px 24px;
+            color: var(--muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            margin-top: 40px;
+            width: 100%;
+        }
+        .footer a {
+            color: var(--purple);
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .footer a:hover { color: var(--cyan); }
+
+        @media (max-width: 640px) {
+            .wrapper { padding: 40px 16px 60px; }
+            .upload-zone { padding: 35px 20px; }
+            .features-grid { grid-template-columns: 1fr; }
+            .stats-row { gap: 24px; }
+        }
     </style>
+    <!-- Yandex.Metrika counter -->
+    <script type="text/javascript">
+        (function(m,e,t,r,i,k,a){
+            m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+            m[i].l=1*new Date();
+            for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+            k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+        })(window, document,'script','https://mc.yandex.ru/metrika/tag.js?id=108975401', 'ym');
+        ym(108975401, 'init', {ssr:true, webvisor:true, clickmap:true, ecommerce:"dataLayer", referrer: document.referrer, url: location.href, accurateTrackBounce:true, trackLinks:true});
+    </script>
+    <noscript><div><img src="https://mc.yandex.ru/watch/108975401" style="position:absolute; left:-9999px;" alt="" /></div></noscript>
+    <!-- /Yandex.Metrika counter -->
 </head>
 <body>
-    <div class="container">
-        <div class="logo">📄</div>
-        <h1>ResumeEasy</h1>
-        <p class="subtitle">Ваше резюме глазами ATS-робота</p>
+    <div id="particles"></div>
 
-        <div class="upload-area" id="dropZone">
+    <div class="wrapper">
+        <div class="hero">
+            <h1>Ваше резюме глазами <span class="gradient-text">ATS-робота</span></h1>
+            <p>80% резюме отсеиваются до того, как их увидит человек. Узнайте, пройдёт ли ваше — и получите готовые правки за 30 секунд.</p>
+        </div>
+
+        <div class="upload-zone" id="uploadZone">
             <div class="icon">📤</div>
-            <p><strong>Перетащите PDF-резюме сюда</strong></p>
-            <p style="margin-top:6px;color:#8892b0;">или нажмите, чтобы выбрать файл (до 10 МБ)</p>
-            <div class="hint">📎 Поддерживаются только PDF</div>
-        </div>
-        <input type="file" id="fileInput" accept=".pdf">
-
-        <div class="progress-section" id="progressSection">
-            <div class="stage-text" id="stageText">⏳ Подготовка...</div>
-            <div class="progress-bar-bg">
-                <div class="progress-bar-fill" id="progressFill"></div>
-            </div>
-            <div class="progress-status" id="progressStatus">0%</div>
+            <div class="text">Перетащите PDF-резюме сюда</div>
+            <div class="subtext">или нажмите, чтобы выбрать файл (до 10 МБ)</div>
+            <input type="file" id="fileInput" accept=".pdf">
         </div>
 
-        <div class="error-text" id="errorText"></div>
+        <div class="status" id="status">
+            <p id="statusText">⏳ Анализируем резюме...</p>
+            <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        </div>
+        <div class="error" id="error"></div>
 
-        <div class="features">
-            <div class="feature">
+        <div class="section-title">Что вы получите</div>
+        <p class="section-sub">Полный разбор резюме с конкретными правками и улучшенной версией</p>
+        <div class="features-grid">
+            <div class="feature-card">
                 <div class="icon">🔍</div>
-                <h4>ATS-совместимость</h4>
-                <p>Проверка под hh.ru</p>
-                <span class="badge">⭐ ТОП-10 слов</span>
+                <h3>ATS-совместимость</h3>
+                <p>Проверим, пройдёт ли резюме фильтры hh.ru, Workday, SAP. Вы получите конкретный список проблем.</p>
             </div>
-            <div class="feature">
+            <div class="feature-card">
                 <div class="icon">📋</div>
-                <h4>Чек-лист правок</h4>
-                <p>6+ конкретных улучшений</p>
-                <span class="badge">⚡ 30 сек</span>
+                <h3>Чек-лист правок</h3>
+                <p>Разобьём замечания по категориям: критичные, метрики, стиль. Отмечайте готовое.</p>
             </div>
-            <div class="feature">
+            <div class="feature-card">
                 <div class="icon">✨</div>
-                <h4>Улучшенное резюме</h4>
-                <p>Готовая версия</p>
-                <span class="badge">✅ 1 клик</span>
+                <h3>Улучшенное резюме</h3>
+                <p>AI перепишет резюме с учётом отмеченных правок. Скопируйте блоками и вставьте в оригинал.</p>
+            </div>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-item">
+                <div class="stat-value">ТОП-10</div>
+                <div class="stat-label">ключевых слов для ATS</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">6+</div>
+                <div class="stat-label">конкретных улучшений</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value">30 сек</div>
+                <div class="stat-label">первый разбор</div>
             </div>
         </div>
     </div>
 
+    <div class="footer">
+        <p>© 2026 <a href="https://t.me/your_bot" target="_blank">ResumeEasy</a> — Ваш персональный ATS-эксперт</p>
+    </div>
+
     <script>
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-        const progressSection = document.getElementById('progressSection');
+        (function() {
+            const container = document.getElementById('particles');
+            for (let i = 0; i < 35; i++) {
+                const p = document.createElement('div');
+                p.classList.add('particle');
+                const size = Math.random() * 4 + 2;
+                p.style.width = size + 'px';
+                p.style.height = size + 'px';
+                p.style.left = Math.random() * 100 + '%';
+                p.style.animationDuration = Math.random() * 12 + 8 + 's';
+                p.style.animationDelay = Math.random() * 10 + 's';
+                container.appendChild(p);
+            }
+        })();
+
+        const zone = document.getElementById('uploadZone');
+        const input = document.getElementById('fileInput');
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
         const progressFill = document.getElementById('progressFill');
-        const progressStatus = document.getElementById('progressStatus');
-        const stageText = document.getElementById('stageText');
-        const errorText = document.getElementById('errorText');
+        const error = document.getElementById('error');
+        const API_URL = 'https://resumeeasy-bot-production.up.railway.app/api/analyze';
 
-        dropZone.addEventListener('click', () => fileInput.click());
-
-        dropZone.addEventListener('dragover', (e) => {
+        zone.addEventListener('click', () => input.click());
+        zone.addEventListener('dragover', (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
+        zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+        zone.addEventListener('drop', (e) => {
             e.preventDefault();
-            dropZone.classList.add('dragover');
+            zone.classList.remove('drag-over');
+            handleFile(e.dataTransfer.files[0]);
         });
-        dropZone.addEventListener('dragleave', () => {
-            dropZone.classList.remove('dragover');
-        });
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('dragover');
-            if (e.dataTransfer.files.length) {
-                handleFile(e.dataTransfer.files[0]);
-            }
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length) {
-                handleFile(e.target.files[0]);
-            }
-        });
+        input.addEventListener('change', (e) => handleFile(e.target.files[0]));
 
         function handleFile(file) {
-            errorText.textContent = '';
-
+            if (!file) return;
             if (!file.name.toLowerCase().endsWith('.pdf')) {
-                errorText.textContent = '❌ Пожалуйста, загрузите файл в формате PDF.';
+                showError('Принимаются только PDF файлы');
                 return;
             }
-
             if (file.size > 10 * 1024 * 1024) {
-                errorText.textContent = '❌ Файл больше 10 МБ. Пожалуйста, уменьшите размер.';
+                showError('Файл больше 10 МБ');
                 return;
             }
-
-            progressSection.classList.add('active');
-            updateProgress(0, '⏳ Начинаю анализ...');
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            fetch('/api/analyze-stream', {
-                method: 'POST',
-                body: formData
-            }).then(response => {
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-
-                function readStream() {
-                    reader.read().then(({ done, value }) => {
-                        if (done) {
-                            if (!window._redirected) {
-                                updateProgress(0, '❌ Ошибка: сервер не вернул результат');
-                            }
-                            return;
-                        }
-                        const chunk = decoder.decode(value);
-                        const lines = chunk.split('\n');
-                        for (const line of lines) {
-                            if (line.startsWith('data: ')) {
-                                try {
-                                    const data = JSON.parse(line.slice(6));
-                                    if (data.stage !== undefined) {
-                                        updateProgress(data.progress || 0, data.stage);
-                                    }
-                                    if (data.redirect) {
-                                        window._redirected = true;
-                                        window.location.href = data.redirect;
-                                    }
-                                    if (data.error) {
-                                        updateProgress(0, '❌ ' + data.error);
-                                        errorText.textContent = '❌ ' + data.error;
-                                    }
-                                } catch (e) {
-                                    console.warn('Parse error:', e);
-                                }
-                            }
-                        }
-                        readStream();
-                    });
-                }
-                readStream();
-            }).catch(err => {
-                console.error('Fetch error:', err);
-                updateProgress(0, '❌ Ошибка соединения с сервером');
-                errorText.textContent = '❌ Ошибка соединения с сервером. Попробуйте позже.';
-            });
+            uploadFile(file);
         }
 
-        function updateProgress(percent, text) {
-            progressFill.style.width = percent + '%';
-            progressStatus.textContent = Math.round(percent) + '%';
-            stageText.textContent = text;
+        function showError(msg) {
+            error.textContent = msg;
+            error.classList.add('show');
+            setTimeout(() => error.classList.remove('show'), 4000);
+        }
+
+        async function uploadFile(file) {
+            status.classList.add('active');
+            statusText.innerText = '⏳ Анализируем резюме...';
+            progressFill.style.width = '30%';
+            error.classList.remove('show');
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                progressFill.style.width = '60%';
+                const response = await fetch(API_URL, { method: 'POST', body: formData });
+                progressFill.style.width = '90%';
+                const data = await response.json();
+                if (data.redirect) {
+                    progressFill.style.width = '100%';
+                    statusText.innerText = '✅ Анализ готов! Открываем отчёт...';
+                    setTimeout(() => {
+                        window.location.href = 'https://resumeeasy-bot-production.up.railway.app' + data.redirect;
+                    }, 400);
+                } else {
+                    showError(data.error || 'Ошибка анализа. Попробуйте другой файл.');
+                    status.classList.remove('active');
+                    progressFill.style.width = '0%';
+                }
+            } catch (err) {
+                showError('Ошибка соединения с сервером. Попробуйте позже.');
+                status.classList.remove('active');
+                progressFill.style.width = '0%';
+            }
         }
     </script>
 </body>
