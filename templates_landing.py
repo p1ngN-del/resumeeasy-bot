@@ -418,22 +418,24 @@ LANDING_HTML = r"""
 
         async function uploadFile(file) {
             status.classList.add('active');
-            statusText.innerText = '⏳ Анализируем резюме...';
-            progressFill.style.width = '30%';
+            statusText.innerText = '📄 Извлекаю текст из PDF...';
+            progressFill.style.width = '25%';
             error.classList.remove('show');
             const formData = new FormData();
             formData.append('file', file);
             try {
-                progressFill.style.width = '60%';
+                progressFill.style.width = '50%';
+                statusText.innerText = '🧠 Анализирую резюме...';
                 const response = await fetch(API_URL, { method: 'POST', body: formData });
-                progressFill.style.width = '90%';
+                progressFill.style.width = '75%';
+                statusText.innerText = '📊 Формирую отчёт...';
                 const data = await response.json();
                 if (data.redirect) {
                     progressFill.style.width = '100%';
                     statusText.innerText = '✅ Анализ готов! Открываем отчёт...';
                     setTimeout(() => {
                         window.location.href = 'https://resumeeasy-bot-production.up.railway.app' + data.redirect;
-                    }, 400);
+                    }, 500);
                 } else {
                     showError(data.error || 'Ошибка анализа. Попробуйте другой файл.');
                     status.classList.remove('active');
