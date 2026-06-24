@@ -1,397 +1,459 @@
-# templates.py — полные шаблоны для всех отчётов
-
 REPORT_HTML = """
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Резюме — полный разбор</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz@14..32&display=swap" rel="stylesheet">
+    <title>Resume Expert Report</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: #0b0b1a;
-            color: #e0e0e0;
-            display: flex;
-            justify-content: center;
-            padding: 30px 20px;
-            min-height: 100vh;
-        }
-        .container {
-            max-width: 820px;
-            width: 100%;
-            background: #14142b;
-            border-radius: 28px;
-            padding: 35px 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.7);
-            border: 1px solid rgba(255,255,255,0.06);
-        }
-        h1 {
-            font-size: 28px;
-            font-weight: 700;
-            color: #ffffff;
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .subhead {
-            color: #8a8aa8;
-            font-size: 15px;
-            border-bottom: 1px solid #2a2a4a;
-            padding-bottom: 18px;
-            margin-bottom: 28px;
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-        }
-        .score-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-            margin-bottom: 32px;
-        }
-        .score-card {
-            background: #1d1d3a;
-            border-radius: 18px;
-            padding: 18px 20px;
-            text-align: center;
-            border: 1px solid #2a2a50;
-        }
-        .score-number {
-            font-size: 42px;
-            font-weight: 700;
-            color: #64ffda;
-        }
-        .score-label {
-            font-size: 14px;
-            color: #8892b0;
-            margin-top: 4px;
-        }
-        .score-sub {
-            font-size: 13px;
-            color: #7a7aaa;
-            margin-top: 6px;
-        }
-        .section {
-            margin: 28px 0 16px;
-        }
-        .section h2 {
-            font-size: 20px;
-            font-weight: 600;
-            color: #fff;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .section h2 span {
-            background: #2a2a4a;
-            padding: 2px 12px;
-            border-radius: 40px;
-            font-size: 13px;
-            font-weight: 400;
-            color: #b0b0d0;
-        }
-        .tag-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-            margin: 6px 0 12px;
-        }
-        .tag {
-            background: #25254a;
-            padding: 6px 16px;
-            border-radius: 30px;
-            font-size: 14px;
-            color: #c8c8f0;
-            border: 1px solid #353560;
-        }
-        .fix-item {
-            background: #1a1a36;
-            border-radius: 14px;
-            padding: 14px 18px;
-            margin-bottom: 10px;
-            border-left: 4px solid #4f8cf7;
-            display: flex;
-            gap: 12px;
-            align-items: flex-start;
-        }
-        .fix-item .icon { font-size: 20px; margin-top: 2px; }
-        .fix-item .content { flex: 1; }
-        .fix-item .content .title { font-weight: 600; color: #fff; }
-        .fix-item .content .desc { color: #b0b0d0; font-size: 14px; margin-top: 3px; }
-        .vacancy-list { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0; }
-        .vacancy-item { background: #1a1a38; padding: 8px 18px; border-radius: 30px; border: 1px solid #33335a; font-size: 14px; }
-        .verdict-box {
-            background: #1d1d3e;
-            border-radius: 18px;
-            padding: 18px 22px;
-            margin: 20px 0 8px;
-            border: 1px solid #2e2e58;
-            font-size: 15px;
-            line-height: 1.6;
-        }
-        .footer-meta {
-            margin-top: 30px;
-            padding-top: 16px;
-            border-top: 1px solid #222244;
-            font-size: 13px;
-            color: #6a6a92;
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-        }
-        @media (max-width: 600px) {
-            .score-grid { grid-template-columns: 1fr; }
-            .container { padding: 20px 16px; }
-        }
+        body { background-color: #121212; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; background: #1e1e1e; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        h1 { color: #ffffff; border-bottom: 2px solid #333; padding-bottom: 15px; margin-top: 0; font-size: 24px; }
+        h2 { color: #bb86fc; margin-top: 30px; font-size: 18px; border-left: 4px solid #bb86fc; padding-left: 10px; }
+        .score-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .score-card { background: #2c2c2c; padding: 15px; border-radius: 8px; text-align: center; }
+        .score-val { font-size: 32px; font-weight: bold; color: #03dac6; }
+        .score-label { font-size: 14px; color: #aaa; margin-top: 5px; }
+        .tag { display: inline-block; background: #333; padding: 4px 8px; border-radius: 4px; margin: 2px; font-size: 12px; color: #03dac6; }
+        .checklist-item { display: flex; align-items: flex-start; padding: 12px; margin-bottom: 10px; background: #252525; border-radius: 8px; border-left: 4px solid #555; }
+        .checklist-item.critical { border-left-color: #cf6679; }
+        .checklist-item.metrics { border-left-color: #ffb74d; }
+        .checklist-item.style { border-left-color: #03dac6; }
+        .checklist-checkbox { margin-right: 12px; margin-top: 3px; width: 20px; height: 20px; cursor: pointer; }
+        .checklist-content { flex: 1; }
+        .checklist-title { font-weight: bold; margin-bottom: 4px; }
+        .checklist-desc { font-size: 13px; color: #aaa; }
+        .verdict-box { background: #1a1a2e; border: 1px solid #bb86fc; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .verbatim { white-space: pre-wrap; background: #252525; padding: 15px; border-radius: 6px; font-size: 14px; }
+        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+        .category-header { display: flex; align-items: center; gap: 10px; margin-top: 20px; }
+        .category-badge { padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; }
+        .badge-critical { background: #cf6679; color: #000; }
+        .badge-metrics { background: #ffb74d; color: #000; }
+        .badge-style { background: #03dac6; color: #000; }
+        .btn-generate { display: block; width: 100%; padding: 15px; background: #bb86fc; color: #000; text-align: center; text-decoration: none; font-weight: bold; border-radius: 8px; margin-top: 20px; cursor: pointer; border: none; font-size: 16px; }
+        .btn-generate:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-copy { display: block; width: 100%; padding: 15px; background: #03dac6; color: #000; text-align: center; text-decoration: none; font-weight: bold; border-radius: 8px; margin-top: 10px; cursor: pointer; border: none; font-size: 16px; }
+        #improvedResume { margin-top: 30px; padding: 20px; background: #1a1a2e; border-radius: 10px; border: 2px solid #bb86fc; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📄 Резюме — полный разбор</h1>
-        <div class="subhead">
-            <span>📅 {{ date }}</span>
-            <span>⚡ ID: {{ report_id[:8] }}</span>
-        </div>
+        <h1>📊 Expert Resume Analysis</h1>
+        <p style="color: #888">Generated on {{ date }}</p>
 
         <div class="score-grid">
             <div class="score-card">
-                <div class="score-number">{{ ats }}</div>
-                <div class="score-label">🤖 ATS-совместимость</div>
-                <div class="score-sub">Оценка парсинга hh.ru</div>
+                <div class="score-val">{{ overall }}/100</div>
+                <div class="score-label">Общая оценка HR</div>
             </div>
             <div class="score-card">
-                <div class="score-number">{{ overall }}</div>
-                <div class="score-label">📊 Общая оценка контента</div>
-                <div class="score-sub">Сила текста и структура</div>
+                <div class="score-val" style="color: #bb86fc">{{ ats }}/100</div>
+                <div class="score-label">ATS Score (hh.ru)</div>
             </div>
         </div>
 
-        <div class="section">
-            <h2>🔑 Ключевые слова <span>ATS-ready</span></h2>
-            <div class="tag-group">
-                {% for kw in keywords %}
-                    <span class="tag">{{ kw }}</span>
-                {% endfor %}
+        <h2>✅ Чек-лист улучшений</h2>
+        <p style="color:#888; font-size:13px">Отметьте правки, которые хотите применить → нажмите «Сгенерировать»</p>
+
+        <div class="category-header">
+            <span class="category-badge badge-critical">🔴 КРИТИЧНО</span>
+            <span style="color:#aaa; font-size:13px">Мешают ATS найти резюме</span>
+        </div>
+        {% for fix in critical_fixes %}
+        <div class="checklist-item critical">
+            <input type="checkbox" class="checklist-checkbox">
+            <div class="checklist-content">
+                <div class="checklist-title">{{ fix.title }}</div>
+                <div class="checklist-desc">{{ fix.description }}</div>
             </div>
         </div>
+        {% endfor %}
 
-        {% if headlines %}
-        <div class="section">
-            <h2>🏷️ Варианты заголовка</h2>
-            <ul style="list-style: none; padding: 0;">
-                {% for h in headlines %}
-                    <li style="background: #181835; padding: 10px 16px; border-radius: 12px; margin-bottom: 6px; border-left: 3px solid #4f8cf7;">{{ h }}</li>
-                {% endfor %}
-            </ul>
+        <div class="category-header">
+            <span class="category-badge badge-metrics">🟡 МЕТРИКИ</span>
+            <span style="color:#aaa; font-size:13px">Добавьте цифры и результаты</span>
         </div>
-        {% endif %}
-
-        <div class="section">
-            <h2>🔧 Чек-лист правок</h2>
-            {% if critical_fixes %}
-            <div style="margin: 12px 0 8px; font-weight: 600; color: #f28b82;">Критические</div>
-            {% for fix in critical_fixes %}
-            <div class="fix-item">
-                <div class="icon">⚠️</div>
-                <div class="content">
-                    <div class="title">{{ fix.title }}</div>
-                    <div class="desc">{{ fix.description }}</div>
-                </div>
-            </div>
-            {% endfor %}
-            {% endif %}
-            {% if metrics_fixes %}
-            <div style="margin: 12px 0 8px; font-weight: 600; color: #fdbc6b;">Метрики и цифры</div>
-            {% for fix in metrics_fixes %}
-            <div class="fix-item" style="border-left-color: #fdbc6b;">
-                <div class="icon">📊</div>
-                <div class="content">
-                    <div class="title">{{ fix.title }}</div>
-                    <div class="desc">{{ fix.description }}</div>
-                </div>
-            </div>
-            {% endfor %}
-            {% endif %}
-            {% if style_fixes %}
-            <div style="margin: 12px 0 8px; font-weight: 600; color: #81c995;">Стиль и формулировки</div>
-            {% for fix in style_fixes %}
-            <div class="fix-item" style="border-left-color: #81c995;">
-                <div class="icon">✏️</div>
-                <div class="content">
-                    <div class="title">{{ fix.title }}</div>
-                    <div class="desc">{{ fix.description }}</div>
-                </div>
-            </div>
-            {% endfor %}
-            {% endif %}
-        </div>
-
-        {% if hh_rec %}
-        <div class="section">
-            <h2>📌 Рекомендации по загрузке на hh.ru</h2>
-            <div style="background: #181838; padding: 16px 20px; border-radius: 16px; white-space: pre-wrap; line-height: 1.7;">{{ hh_rec }}</div>
-        </div>
-        {% endif %}
-
-        {% if match_vac %}
-        <div class="section">
-            <h2>🎯 Подходящие вакансии</h2>
-            <div class="vacancy-list">
-                {% for vac in match_vac %}
-                    <span class="vacancy-item">{{ vac }}</span>
-                {% endfor %}
+        {% for fix in metrics_fixes %}
+        <div class="checklist-item metrics">
+            <input type="checkbox" class="checklist-checkbox">
+            <div class="checklist-content">
+                <div class="checklist-title">{{ fix.title }}</div>
+                <div class="checklist-desc">{{ fix.description }}</div>
             </div>
         </div>
-        {% endif %}
+        {% endfor %}
 
-        <div class="section">
-            <h2>📋 Финальный вердикт</h2>
-            <div class="verdict-box">{{ verdict }}</div>
+        <div class="category-header">
+            <span class="category-badge badge-style">🟢 СТИЛЬ</span>
+            <span style="color:#aaa; font-size:13px">Язык, глаголы, подача</span>
+        </div>
+        {% for fix in style_fixes %}
+        <div class="checklist-item style">
+            <input type="checkbox" class="checklist-checkbox">
+            <div class="checklist-content">
+                <div class="checklist-title">{{ fix.title }}</div>
+                <div class="checklist-desc">{{ fix.description }}</div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <button class="btn-generate" onclick="generateResume()" id="genBtn">
+            ✨ Сгенерировать улучшенное резюме
+        </button>
+
+        <div id="improvedResume" style="display:none;">
+            <h2 style="color:#03dac6; margin-top:0;">✨ Улучшенное резюме</h2>
+            <div class="verbatim" id="improvedText"></div>
+            <button class="btn-copy" onclick="copyImproved()">📋 Скопировать текст</button>
         </div>
 
-        <div class="footer-meta">
-            <span>🤖 ResumeEasy — ATS-эксперт</span>
-            <span>🧠 Анализ проведён {{ date }}</span>
+        <h2>🎯 Варианты заголовка для hh.ru</h2>
+        <div class="verbatim">
+        {% for h in headlines %}• {{ h }}<br>{% endfor %}
         </div>
+
+        <h2>🔑 Ключевые слова для ATS</h2>
+        <div>
+        {% for k in keywords %}<span class="tag">{{ k }}</span>{% endfor %}
+        </div>
+
+        <h2>💡 Рекомендации по hh.ru</h2>
+        <div class="verbatim">{{ hh_rec }}</div>
+
+        <h2>📈 Подходящие вакансии</h2>
+        <div class="verbatim">
+        {% for v in match_vac %}• {{ v }}<br>{% endfor %}
+        </div>
+
+        <div class="verdict-box">
+            <h2>🎤 Финальный вердикт</h2>
+            <div class="verbatim">{{ verdict }}</div>
+        </div>
+
+        <div class="footer">Powered by ResumeEasy Bot</div>
     </div>
+
+    <input type="hidden" id="reportId" value="{{ report_id }}">
+
+    <script>
+        function generateResume() {
+            const selected = [];
+            document.querySelectorAll('.checklist-checkbox:checked').forEach(cb => {
+                const item = cb.closest('.checklist-item');
+                selected.push({
+                    title: item.querySelector('.checklist-title').innerText,
+                    desc: item.querySelector('.checklist-desc').innerText
+                });
+            });
+            
+            if (selected.length === 0) {
+                alert('Выберите хотя бы одну правку!');
+                return;
+            }
+            
+            document.getElementById('genBtn').innerText = '⏳ Генерирую...';
+            document.getElementById('genBtn').disabled = true;
+            
+            fetch('/api/improve', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({report_id: document.getElementById('reportId').value, fixes: selected})
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.redirect) {
+                    window.location.href = data.redirect;
+                } else {
+                    document.getElementById('improvedText').innerText = data.text || 'Ошибка';
+                    document.getElementById('improvedResume').style.display = 'block';
+                    document.getElementById('genBtn').innerText = '✅ Готово!';
+                    document.getElementById('genBtn').disabled = false;
+                }
+            })
+            .catch(() => {
+                document.getElementById('genBtn').innerText = '❌ Ошибка';
+                document.getElementById('genBtn').disabled = false;
+            });
+        }
+
+        function copyImproved() {
+            navigator.clipboard.writeText(document.getElementById('improvedText').innerText)
+                .then(() => alert('Скопировано!'));
+        }
+    </script>
 </body>
 </html>
 """
 
 MATCH_HTML = """
 <!DOCTYPE html>
-<html>
-<head><title>Сравнение с вакансией</title></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #ccd6f6;">
-    <h1 style="color:#fff;">🎯 Сравнение с вакансией</h1>
-    <p><strong>Совпадение:</strong> {{ match }}%</p>
-    <h2 style="color:#fff;">Отсутствующие навыки</h2>
-    <ul>
-    {% for skill in missing %}
-        <li>{{ skill }}</li>
-    {% endfor %}
-    </ul>
-    <h2 style="color:#fff;">Рекомендации</h2>
-    <ul>
-    {% for rec in recs %}
-        <li>{{ rec }}</li>
-    {% endfor %}
-    </ul>
-    <p>{{ summary }}</p>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Job Match Report</title>
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; background: #1e1e1e; padding: 30px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        h1 { color: #ffffff; border-bottom: 2px solid #333; padding-bottom: 15px; margin-top: 0; font-size: 24px; }
+        h2 { color: #bb86fc; margin-top: 30px; font-size: 18px; border-left: 4px solid #bb86fc; padding-left: 10px; }
+        .score-card { background: #2c2c2c; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
+        .score-val { font-size: 48px; font-weight: bold; color: #03dac6; }
+        .score-label { font-size: 16px; color: #aaa; margin-top: 5px; }
+        .list-item { background: #252525; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #cf6679; }
+        .rec-item { background: #252525; padding: 10px; margin-bottom: 8px; border-radius: 6px; border-left: 3px solid #03dac6; }
+        .summary { background: #333; padding: 15px; border-radius: 6px; margin-bottom: 20px; font-style: italic; }
+        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Job Match Analysis</h1>
+        <p style="color: #888">Generated on {{ date }}</p>
+        <div class="score-card">
+            <div class="score-val">{{ match }}/100</div>
+            <div class="score-label">Совпадение с вакансией</div>
+        </div>
+        <div class="summary">{{ summary }}</div>
+        <h2>❌ Недостающие навыки</h2>
+        {% for skill in missing %}<div class="list-item">• {{ skill }}</div>{% endfor %}
+        <h2>💡 Рекомендации по улучшению</h2>
+        {% for rec in recs %}<div class="rec-item">• {{ rec }}</div>{% endfor %}
+        <div class="footer">Powered by ResumeEasy Bot</div>
+    </div>
 </body>
 </html>
 """
 
 COVER_HTML = """
 <!DOCTYPE html>
-<html>
-<head><title>Сопроводительное письмо</title></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #ccd6f6;">
-    <h1 style="color:#fff;">📝 Сопроводительное письмо</h1>
-    <pre style="white-space: pre-wrap; word-wrap: break-word; background: #1a1a36; padding: 20px; border-radius: 12px; color: #ccd6f6; border: 1px solid #2a2a4a;">{{ letter }}</pre>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cover Letter</title>
+    <style>
+        body { background-color: #121212; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; background: #1e1e1e; padding: 40px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        h1 { color: #ffffff; border-bottom: 2px solid #333; padding-bottom: 15px; margin-top: 0; font-size: 24px; }
+        .letter-content { white-space: pre-wrap; background: #252525; padding: 20px; border-radius: 8px; font-size: 16px; line-height: 1.8; border: 1px solid #333; }
+        .btn-copy { display: block; width: 100%; padding: 15px; background: #03dac6; color: #000; text-align: center; text-decoration: none; font-weight: bold; border-radius: 8px; margin-top: 20px; cursor: pointer; border: none; font-size: 16px; }
+        .footer { margin-top: 40px; text-align: center; font-size: 12px; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📝 Сопроводительное письмо</h1>
+        <p style="color: #888">Готово к отправке на hh.ru</p>
+        <div class="letter-content" id="letterText">{{ letter }}</div>
+        <button class="btn-copy" onclick="copyText()">📋 Скопировать текст</button>
+        <div class="footer">Powered by ResumeEasy Bot</div>
+    </div>
+    <script>
+        function copyText() {
+            navigator.clipboard.writeText(document.getElementById("letterText").innerText)
+                .then(() => alert("Текст скопирован!"));
+        }
+    </script>
 </body>
 </html>
 """
 
 IMPROVED_HTML = """
 <!DOCTYPE html>
-<html>
-<head><title>Улучшенное резюме</title></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #ccd6f6;">
-    <h1 style="color:#fff;">✨ Улучшенное резюме</h1>
-    <p><strong>Дата:</strong> {{ date }}</p>
-    <p><strong>ATS-оценка:</strong> {{ ats }}/100</p>
-    <p><strong>Общая оценка:</strong> {{ overall }}/100</p>
-    <h2 style="color:#fff;">Блоки</h2>
-    {% for block in blocks %}
-        <h3 style="color:#fff;">{{ block.title }}</h3>
-        <pre style="white-space: pre-wrap; word-wrap: break-word; background: #1a1a36; padding: 12px; border-radius: 8px; color: #ccd6f6; border: 1px solid #2a2a4a;">{{ block.text }}</pre>
-    {% endfor %}
-    <p><strong>Итог:</strong> {{ summary }}</p>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Улучшенное резюме</title>
+    <style>
+        :root { --bg: #0a0a0f; --card: #12121a; --bdr: #1e1e2e; --purple: #a78bfa; --cyan: #22d3ee; --text: #e2e8f0; --muted: #94a3b8; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 24px; line-height: 1.6; }
+        .container { max-width: 800px; margin: 0 auto; }
+        h1 { color: #fff; font-size: 1.8rem; text-align: center; margin-bottom: 4px; }
+        .subtitle { text-align: center; color: var(--muted); margin-bottom: 24px; font-size: 0.9rem; }
+        .scores { display: flex; gap: 16px; justify-content: center; margin-bottom: 28px; }
+        .score { background: var(--card); border: 1px solid var(--bdr); border-radius: 12px; padding: 14px 22px; text-align: center; min-width: 90px; }
+        .score .val { font-size: 2rem; font-weight: 800; color: var(--cyan); }
+        .score .val.ats { color: var(--purple); }
+        .score .lbl { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .summary-box { background: #1a1a2e; border: 1px solid var(--purple); border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; text-align: center; }
+        .summary-box p { margin: 0; color: #ffb74d; font-size: 0.95rem; }
+        .block { background: var(--card); border: 1px solid var(--bdr); border-radius: 12px; padding: 18px 22px; margin-bottom: 14px; transition: border-color 0.2s; }
+        .block:hover { border-color: var(--purple); }
+        .block-title { color: var(--purple); font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+        .block-title .icon { font-size: 1.1rem; }
+        .block-text { white-space: pre-wrap; color: var(--text); font-size: 0.95rem; }
+        .btn-copy { background: var(--cyan); color: #000; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.8rem; margin-top: 10px; display: inline-block; }
+        .btn-copy:hover { opacity: 0.85; }
+        .footer { text-align: center; color: #64748b; font-size: 0.78rem; margin-top: 36px; }
+        @media (max-width: 600px) { body { padding: 14px; } .block { padding: 14px 16px; } .scores { gap: 10px; } .score { padding: 10px 14px; } .score .val { font-size: 1.5rem; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>✨ Улучшенное резюме</h1>
+        <p class="subtitle">{{ date }}</p>
+        <div class="scores">
+            <div class="score"><div class="val">{{ overall }}/100</div><div class="lbl">Общая оценка</div></div>
+            <div class="score"><div class="val ats">{{ ats }}/100</div><div class="lbl">ATS Score</div></div>
+        </div>
+        {% if summary %}
+        <div class="summary-box"><p>💡 {{ summary }}</p></div>
+        {% endif %}
+        {% for block in blocks %}
+        <div class="block">
+            <div class="block-title">
+                <span class="icon">
+                    {% if 'заголовок' in block.title.lower() or 'контакт' in block.title.lower() %}👤
+                    {% elif 'должност' in block.title.lower() %}💼
+                    {% elif 'опыт' in block.title.lower() %}📋
+                    {% elif 'образование' in block.title.lower() %}🎓
+                    {% elif 'навык' in block.title.lower() %}🔧
+                    {% elif 'обо мне' in block.title.lower() %}📝
+                    {% else %}📄{% endif %}
+                </span>
+                {{ block.title }}
+            </div>
+            <div class="block-text">{{ block.text or '(нет данных)' }}</div>
+            <button class="btn-copy" onclick="copyBlock(this)" data-text="{{ block.text }}">📋 Копировать блок</button>
+        </div>
+        {% endfor %}
+        <div class="footer">ResumeEasy — ваш персональный ATS-эксперт</div>
+    </div>
+    <script>
+        function copyBlock(btn) {
+            navigator.clipboard.writeText(btn.getAttribute('data-text'))
+                .then(() => { btn.innerText = '✅ Скопировано!'; setTimeout(() => btn.innerText = '📋 Копировать блок', 1500); });
+        }
+    </script>
 </body>
 </html>
 """
 
 ADMIN_HTML = """
 <!DOCTYPE html>
-<html>
-<head><title>Админ-панель</title></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #ccd6f6;">
-    <h1 style="color:#fff;">📊 Админ-панель</h1>
-    <p style="color:#8892b0;">Обновлено: {{ now }}</p>
-    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin: 20px 0;">
-        <div style="background: #14142b; padding: 16px; border-radius: 12px; border: 1px solid #2a2a4a;">
-            <h3 style="color:#8892b0;">👥 Пользователей</h3>
-            <p style="font-size: 32px; color:#64ffda;">{{ total_users }}</p>
-        </div>
-        <div style="background: #14142b; padding: 16px; border-radius: 12px; border: 1px solid #2a2a4a;">
-            <h3 style="color:#8892b0;">🆕 За сегодня</h3>
-            <p style="font-size: 32px; color:#64ffda;">{{ new_today }}</p>
-        </div>
-        <div style="background: #14142b; padding: 16px; border-radius: 12px; border: 1px solid #2a2a4a;">
-            <h3 style="color:#8892b0;">📄 Анализов</h3>
-            <p style="font-size: 32px; color:#64ffda;">{{ total_analyses }}</p>
-        </div>
-        <div style="background: #14142b; padding: 16px; border-radius: 12px; border: 1px solid #2a2a4a;">
-            <h3 style="color:#8892b0;">📈 Активных (7 дней)</h3>
-            <p style="font-size: 32px; color:#64ffda;">{{ active_week }}</p>
-        </div>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ResumeEasy Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a0a; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .sidebar { position: fixed; left: 0; top: 0; width: 220px; height: 100vh; background: #111; padding: 20px; border-right: 1px solid #222; }
+        .sidebar h2 { color: #bb86fc; margin-bottom: 30px; font-size: 20px; }
+        .sidebar a { display: block; color: #888; text-decoration: none; padding: 10px; border-radius: 6px; margin-bottom: 5px; transition: 0.2s; }
+        .sidebar a:hover, .sidebar a.active { background: #1e1e1e; color: #fff; }
+        .main { margin-left: 220px; padding: 30px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 30px; }
+        .stat-card { background: #1e1e1e; padding: 20px; border-radius: 10px; border: 1px solid #333; }
+        .stat-card .value { font-size: 32px; font-weight: bold; color: #03dac6; }
+        .stat-card .label { font-size: 13px; color: #888; margin-top: 5px; }
+        .chart-container { background: #1e1e1e; padding: 20px; border-radius: 10px; border: 1px solid #333; margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; background: #1e1e1e; border-radius: 10px; overflow: hidden; }
+        th { background: #252525; padding: 12px; text-align: left; font-size: 13px; color: #888; text-transform: uppercase; }
+        td { padding: 12px; border-top: 1px solid #333; font-size: 14px; }
+        tr:hover td { background: #252525; }
+        .badge { padding: 3px 8px; border-radius: 10px; font-size: 11px; font-weight: bold; }
+        .badge-new { background: #03dac6; color: #000; }
+        .badge-active { background: #bb86fc; color: #000; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>📊 ResumeEasy</h2>
+        <a href="/admin" class="active">🏠 Дашборд</a>
+        <a href="/admin/users">👥 Пользователи</a>
+        <a href="/admin/export">📥 Экспорт CSV</a>
     </div>
-    <h2 style="color:#fff;">Последние пользователи</h2>
-    <table style="width: 100%; border-collapse: collapse; text-align: left; color:#ccd6f6;">
-        <tr style="border-bottom: 1px solid #2a2a4a;">
-            <th style="padding: 8px;">ID</th>
-            <th style="padding: 8px;">Username</th>
-            <th style="padding: 8px;">Имя</th>
-            <th style="padding: 8px;">Анализов</th>
-            <th style="padding: 8px;">Средний ATS</th>
-        </tr>
-        {% for user in users %}
-        <tr style="border-bottom: 1px solid #1a1a36;">
-            <td style="padding: 8px;">{{ user.user_id }}</td>
-            <td style="padding: 8px;">{{ user.username or '-' }}</td>
-            <td style="padding: 8px;">{{ user.first_name or '-' }}</td>
-            <td style="padding: 8px;">{{ user.total }}</td>
-            <td style="padding: 8px;">{{ user.avg_ats|round(1) }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+    <div class="main">
+        <h1 style="margin-bottom: 5px;">Дашборд</h1>
+        <p style="color: #888; margin-bottom: 25px;">Обновлено: {{ now }}</p>
+        <div class="stats-grid">
+            <div class="stat-card"><div class="value">{{ total_users }}</div><div class="label">👥 Всего пользователей</div></div>
+            <div class="stat-card"><div class="value">{{ new_today }}</div><div class="label">🆕 Новых сегодня</div></div>
+            <div class="stat-card"><div class="value">{{ total_analyses }}</div><div class="label">📊 Всего анализов</div></div>
+            <div class="stat-card"><div class="value">{{ active_week }}</div><div class="label">🔥 Активных за 7 дней</div></div>
+        </div>
+        <div class="chart-container"><canvas id="userChart" height="120"></canvas></div>
+        <h2 style="margin-bottom: 15px;">Последние пользователи</h2>
+        <table>
+            <thead><tr><th>ID</th><th>Имя</th><th>Username</th><th>Анализов</th><th>Ср. ATS</th><th>Активность</th><th>Статус</th></tr></thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>{{ u.user_id }}</td>
+                    <td>{{ u.first_name or '—' }}</td>
+                    <td>{{ u.username or '—' }}</td>
+                    <td>{{ u.total }}</td>
+                    <td>{{ "%.0f"|format(u.avg_ats) }}</td>
+                    <td>{{ u.last_activity.strftime('%d.%m.%Y') if u.last_activity else '—' }}</td>
+                    <td>{% if u.total == 0 %}<span class="badge badge-new">NEW</span>{% else %}<span class="badge badge-active">ACTIVE</span>{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <script>
+        new Chart(document.getElementById('userChart'), {
+            type: 'line',
+            data: { labels: {{ chart_labels | tojson }}, datasets: [{ label: 'Новые', data: {{ chart_data | tojson }}, borderColor: '#bb86fc', backgroundColor: 'rgba(187,134,252,0.1)', fill: true, tension: 0.4 }] },
+            options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grid: { color: '#333' } }, x: { grid: { color: '#333' } } } }
+        });
+    </script>
 </body>
 </html>
 """
 
 ADMIN_USERS_HTML = """
 <!DOCTYPE html>
-<html>
-<head><title>Все пользователи</title></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #0a0a1a; color: #ccd6f6;">
-    <h1 style="color:#fff;">👥 Все пользователи</h1>
-    <p><a href="/admin" style="color: #64ffda; text-decoration: none;">← Назад</a></p>
-    <table style="width: 100%; border-collapse: collapse; text-align: left; color:#ccd6f6;">
-        <tr style="border-bottom: 1px solid #2a2a4a;">
-            <th style="padding: 8px;">ID</th>
-            <th style="padding: 8px;">Username</th>
-            <th style="padding: 8px;">Имя</th>
-            <th style="padding: 8px;">Дата регистрации</th>
-            <th style="padding: 8px;">Анализов</th>
-            <th style="padding: 8px;">Средний ATS</th>
-        </tr>
-        {% for user in users %}
-        <tr style="border-bottom: 1px solid #1a1a36;">
-            <td style="padding: 8px;">{{ user.user_id }}</td>
-            <td style="padding: 8px;">{{ user.username or '-' }}</td>
-            <td style="padding: 8px;">{{ user.first_name or '-' }}</td>
-            <td style="padding: 8px;">{{ user.join_date.strftime('%d.%m.%Y') if user.join_date else '-' }}</td>
-            <td style="padding: 8px;">{{ user.total }}</td>
-            <td style="padding: 8px;">{{ user.avg_ats|round(1) }}</td>
-        </tr>
-        {% endfor %}
-    </table>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8"><title>Users - ResumeEasy Admin</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #0a0a0a; color: #e0e0e0; font-family: -apple-system, sans-serif; }
+        .sidebar { position: fixed; left: 0; top: 0; width: 220px; height: 100vh; background: #111; padding: 20px; border-right: 1px solid #222; }
+        .sidebar h2 { color: #bb86fc; margin-bottom: 30px; }
+        .sidebar a { display: block; color: #888; text-decoration: none; padding: 10px; border-radius: 6px; margin-bottom: 5px; }
+        .sidebar a:hover, .sidebar a.active { background: #1e1e1e; color: #fff; }
+        .main { margin-left: 220px; padding: 30px; }
+        table { width: 100%; border-collapse: collapse; background: #1e1e1e; border-radius: 10px; overflow: hidden; }
+        th { background: #252525; padding: 12px; text-align: left; font-size: 13px; color: #888; }
+        td { padding: 12px; border-top: 1px solid #333; font-size: 14px; }
+        tr:hover td { background: #252525; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>📊 ResumeEasy</h2>
+        <a href="/admin">🏠 Дашборд</a>
+        <a href="/admin/users" class="active">👥 Пользователи</a>
+        <a href="/admin/export">📥 Экспорт CSV</a>
+    </div>
+    <div class="main">
+        <h1>Все пользователи</h1>
+        <table>
+            <thead><tr><th>ID</th><th>Имя</th><th>Username</th><th>Дата регистрации</th><th>Активность</th><th>Анализов</th><th>Ср. ATS</th></tr></thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>{{ u.user_id }}</td>
+                    <td>{{ u.first_name or '—' }}</td>
+                    <td>{{ u.username or '—' }}</td>
+                    <td>{{ u.join_date.strftime('%d.%m.%Y') if u.join_date else '—' }}</td>
+                    <td>{{ u.last_activity.strftime('%d.%m.%Y') if u.last_activity else '—' }}</td>
+                    <td>{{ u.total }}</td>
+                    <td>{{ "%.0f"|format(u.avg_ats) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </body>
 </html>
 """
