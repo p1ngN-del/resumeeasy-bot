@@ -286,6 +286,7 @@ IMPROVED_HTML = """
         .block-title { color: var(--purple); font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
         .block-title .icon { font-size: 1.1rem; }
         .block-text { white-space: pre-wrap; color: var(--text); font-size: 0.95rem; }
+        .block-text .new { color: #10b981; font-weight: 500; }
         .btn-copy { background: var(--cyan); color: #000; border: none; padding: 8px 14px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 0.8rem; margin-top: 10px; display: inline-block; }
         .btn-copy:hover { opacity: 0.85; }
         .footer { text-align: center; color: #64748b; font-size: 0.78rem; margin-top: 36px; }
