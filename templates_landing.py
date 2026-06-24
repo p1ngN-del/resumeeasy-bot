@@ -435,7 +435,7 @@ LANDING_HTML = r"""
             formData.append('file', file);
             
             try {
-                statusText.innerText = '🧠 AI анализирует резюме...';
+                statusText.innerText = '🧠 Анализирую резюме...';
                 const response = await fetch(API_URL, { method: 'POST', body: formData });
                 
                 statusText.innerText = '📊 Формирую отчёт...';
