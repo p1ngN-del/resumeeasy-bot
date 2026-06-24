@@ -10,7 +10,7 @@ from flask import request, render_template_string, Response
 import pdfplumber
 
 from config import TELEGRAM_TOKEN, ADMIN_IDS, logger
-from database import save_user, save_analysis, get_user_history, get_last_analysis_text, get_all_users, get_db, ensure_user_exists
+from database import save_user, save_analysis, get_user_history, get_last_analysis_text, get_all_users, get_db
 from ai import analyze_part
 from telegram_helpers import send_message, send_welcome_video, clean_markdown, extract_json
 from templates import REPORT_HTML, MATCH_HTML, COVER_HTML, IMPROVED_HTML, ADMIN_HTML, ADMIN_USERS_HTML
@@ -30,7 +30,6 @@ def extract_text_from_pdf(file_bytes):
                 else:
                     logger.warning(f"PDF page {i+1} returned no text")
         
-        # Очистка
         lines = text.split('\n')
         seen = set()
         unique_lines = []
@@ -150,36 +149,33 @@ def register_routes(app):
         
         fixes_text = "\n".join([f"- {f['title']}: {f['desc']}" for f in fixes])
         
-        custom_prompt = f"""Улучши резюме по указанным правкам. Верни СТРОГО JSON:
+        custom_prompt = f"""Улучши резюме по указанным правкам. Верни СТРОГО JSON с блоками:
 
 {{
   "blocks": [
-    {{"title": "Заголовок", "text": "ФИО: ...\\nТелефон: ...\\nEmail: ...\\nГород: ...\\nГражданство: ..."}},
-    {{"title": "Желаемая должность", "text": "Операционный директор (СОО)"}},
-    {{"title": "Опыт работы", "text": "Компания 1, должность, даты:\\n• достижение\\n• достижение\\n\\nКомпания 2, должность, даты:\\n• достижение"}},
+    {{"title": "Заголовок и контакты", "text": "ФИО, телефон, email, город — без изменений"}},
+    {{"title": "Желаемая должность", "text": "должность и зарплатные ожидания"}},
+    {{"title": "Опыт работы", "text": "полный улучшенный текст опыта работы"}},
     {{"title": "Образование", "text": "образование"}},
-    {{"title": "Навыки", "text": "навык1, навык2, навык3"}},
-    {{"title": "Обо мне", "text": "текст"}}
+    {{"title": "Навыки", "text": "навыки — сгруппированы по категориям"}},
+    {{"title": "Обо мне", "text": "дополнительная информация — улучшенный текст"}}
   ],
   "summary": "Краткий итог: что улучшено",
   "overall_score": 85,
   "ats_score": 90
 }}
 
-ПРАВИЛА:
-- НЕ придумывай компании, вузы, имена, цифры. ТОЛЬКО из резюме.
-- Контакты оставь БЕЗ изменений.
-- Желаемая должность — ТОЛЬКО название должности (без зарплаты, типа занятости).
-- Опыт работы разбей по компаниям: Компания, должность, даты → буллиты с достижениями.
-- Навыки — через запятую, одной строкой.
-- overall_score и ats_score поставь РЕАЛЬНЫЕ оценки (не 0/0).
+СМЕРТЕЛЬНЫЕ ПРАВИЛА:
+- НЕ придумывай компании, вузы, имена, цифры, должности. ТОЛЬКО то, что ЕСТЬ в резюме.
+- НЕ меняй контакты, телефон, email — оставь как есть.
 - НЕ используй Markdown.
+- Каждый блок должен содержать ПОЛНЫЙ текст раздела.
 
 Правки:
 {fixes_text}
 
 ВСЁ РЕЗЮМЕ:
-{resume_text}
+{resume_text[:6000]}
 
 JSON:"""
         
@@ -305,105 +301,50 @@ JSON:"""
             text = data['message'].get('text', '')
             
             if text in ['/start', '⬅️ Назад в меню']:
-                resume_cache[f"{chat_id}_mode"] = None
-                show_start_menu(chat_id)
-                return 'ok', 200
-            
+                show_start_menu(chat_id); return 'ok', 200
             if text == '❓ Помощь':
-                send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Нажми «Получить отчет»\n3. Отметь нужные правки\n4. Нажми «Сгенерировать»")
-                return 'ok', 200
-            
+                send_message(chat_id, "📘 <b>Как пользоваться:</b>\n1. Загрузи PDF\n2. Нажми «Получить отчет»\n3. Отметь нужные правки\n4. Нажми «Сгенерировать» — получишь готовое улучшенное резюме!"); return 'ok', 200
             if text == '📈 Моя история':
                 hist = get_user_history(chat_id, 5)
-                if not hist:
-                    send_message(chat_id, "📭 Истории пока нет.")
-                    return 'ok', 200
+                if not hist: send_message(chat_id, "📭 Истории пока нет."); return 'ok', 200
                 msg = "📈 <b>Твои анализы:</b>\n"
                 for i, row in enumerate(hist, 1):
                     msg += f"{i}. {row['analysis_date'].strftime('%d.%m.%Y')} | ATS: {row['ats_score'] or '?'} | HR: {row['overall_score'] or '?'}\n"
-                send_message(chat_id, msg)
-                return 'ok', 200
-            
+                send_message(chat_id, msg); return 'ok', 200
             if text == '🔐 Админ-панель':
-                if chat_id not in ADMIN_IDS:
-                    send_message(chat_id, "🔐 Доступ запрещён")
-                    return 'ok', 200
+                if chat_id not in ADMIN_IDS: send_message(chat_id, "🔐 Доступ запрещён"); return 'ok', 200
                 domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
                 kb = {"inline_keyboard": [[{"text": "🔐 Открыть админ-панель", "url": f"{domain}/admin"}]]}
-                send_message(chat_id, "📊 <b>Админ-панель готова!</b>", reply_markup=kb)
-                return 'ok', 200
-            
+                send_message(chat_id, "📊 <b>Админ-панель готова!</b>", reply_markup=kb); return 'ok', 200
             if text.startswith('/admin_hist '):
-                if chat_id not in ADMIN_IDS:
-                    return 'ok', 200
+                if chat_id not in ADMIN_IDS: return 'ok', 200
                 target_id = text.split()[1]
                 hist = get_user_history(int(target_id), 20)
-                if not hist:
-                    send_message(chat_id, f"🔍 У пользователя {target_id} нет анализов.")
-                    return 'ok', 200
+                if not hist: send_message(chat_id, f"🔍 У пользователя {target_id} нет анализов."); return 'ok', 200
                 msg = f"📋 История {target_id}\n"
-                for row in hist:
-                    msg += f"📅 {row['analysis_date'].strftime('%d.%m.%Y')} | ATS: {row['ats_score']} | HR: {row['overall_score']}\n"
-                send_message(chat_id, msg)
-                return 'ok', 200
-            
+                for row in hist: msg += f"📅 {row['analysis_date'].strftime('%d.%m.%Y')} | ATS: {row['ats_score']} | HR: {row['overall_score']}\n"
+                send_message(chat_id, msg); return 'ok', 200
             if text in ['📄 Загрузить резюме', '📄 Новое резюме']:
                 resume_cache[f"{chat_id}_mode"] = None
-                send_message(chat_id, "📎 Отправь PDF (до 10 МБ)")
-                return 'ok', 200
-            
+                send_message(chat_id, "📎 Отправь PDF (до 10 МБ)"); return 'ok', 200
             if 'document' in data['message']:
                 doc = data['message']['document']
-                user_id = chat_id
-                username = data['message']['from'].get('username', 'unknown')
-                first_name = data['message']['from'].get('first_name', '')
-                
-                ensure_user_exists(user_id, username, first_name)
-                
-                if doc.get('file_size', 0) > 10*1024*1024:
-                    send_message(chat_id, "❌ Файл >10 МБ")
-                    return 'ok', 200
-                if doc.get('mime_type') != 'application/pdf':
-                    send_message(chat_id, "❌ Нужен PDF")
-                    return 'ok', 200
-                
-                last_resume = resume_cache.get(f"{chat_id}_last_text")
+                if doc.get('file_size', 0) > 10*1024*1024: send_message(chat_id, "❌ Файл >10 МБ"); return 'ok', 200
+                if doc.get('mime_type') != 'application/pdf': send_message(chat_id, "❌ Нужен PDF"); return 'ok', 200
                 send_message(chat_id, "🔍 Извлекаю текст...")
-                
                 fid = doc['file_id']
                 finfo = req.get(f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getFile?file_id={fid}", timeout=30).json()
-                if not finfo.get('ok'):
-                    send_message(chat_id, "❌ Ошибка файла")
-                    return 'ok', 200
-                
+                if not finfo.get('ok'): send_message(chat_id, "❌ Ошибка файла"); return 'ok', 200
                 rtext = extract_text_from_pdf(req.get(f"https://api.telegram.org/file/bot{TELEGRAM_TOKEN}/{finfo['result']['file_path']}", timeout=60).content)
-                
-                if not rtext or len(rtext.split()) < 50:
-                    send_message(chat_id, "❌ Текст не извлечён")
-                    return 'ok', 200
-                
-                if last_resume and len(rtext) > 100 and rtext[:500] == last_resume[:500]:
-                    send_message(chat_id, "📄 Это резюме уже загружено. Нажми «Получить отчет» для анализа.")
-                    show_post_upload_menu(chat_id)
-                    return 'ok', 200
-                
-                resume_cache[chat_id] = rtext
-                resume_cache[f"{chat_id}_last_text"] = rtext[:500]
-                resume_cache[f"{chat_id}_mode"] = None
-                
+                if not rtext or len(rtext.split()) < 50: send_message(chat_id, "❌ Текст не извлечён"); return 'ok', 200
                 logger.info(f"PDF loaded for user {chat_id}: {len(rtext)} chars")
-                send_message(chat_id, "✅ Резюме загружено! Нажми «Получить отчет» для полного анализа.")
-                show_post_upload_menu(chat_id)
-                return 'ok', 200
-            
+                resume_cache[chat_id] = rtext
+                resume_cache[f"{chat_id}_mode"] = None
+                show_post_upload_menu(chat_id); return 'ok', 200
             if text == '🎯 Сравнить с вакансией':
-                if not resume_cache.get(chat_id):
-                    send_message(chat_id, "❌ Сначала загрузи резюме!")
-                    return 'ok', 200
+                if not resume_cache.get(chat_id): send_message(chat_id, "❌ Сначала загрузи резюме!"); return 'ok', 200
                 resume_cache[f"{chat_id}_mode"] = "job_desc"
-                send_message(chat_id, "📋 Скопируй текст вакансии и отправь сюда.")
-                return 'ok', 200
-            
+                send_message(chat_id, "📋 Скопируй текст вакансии и отправь сюда."); return 'ok', 200
             if resume_cache.get(f"{chat_id}_mode") == "job_desc":
                 job_desc = text[:3000]
                 resume_cache[f"{chat_id}_last_job"] = job_desc
@@ -416,72 +357,48 @@ JSON:"""
                     domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
                     kb = {"inline_keyboard": [[{"text": "🌐 Открыть отчет", "url": f"{domain}/report/{report_id}"}]]}
                     send_message(chat_id, "✅ <b>Сравнение готово!</b>", reply_markup=kb)
-                else:
-                    send_message(chat_id, "❌ Не удалось сравнить.")
-                resume_cache[f"{chat_id}_mode"] = None
-                return 'ok', 200
-            
+                else: send_message(chat_id, "❌ Не удалось сравнить.")
+                resume_cache[f"{chat_id}_mode"] = None; return 'ok', 200
             if text == '📝 Сопроводительное':
-                if not resume_cache.get(chat_id):
-                    send_message(chat_id, "❌ Сначала загрузи резюме!")
-                    return 'ok', 200
+                if not resume_cache.get(chat_id): send_message(chat_id, "❌ Сначала загрузи резюме!"); return 'ok', 200
                 saved_job = resume_cache.get(f"{chat_id}_last_job")
                 if saved_job:
                     kb = {"keyboard": [["📋 Использовать прошлую вакансию"], ["🆕 Указать новую вакансию"], ["📝 Без вакансии (общее)"]], "resize_keyboard": True}
-                    send_message(chat_id, "📝 <b>Сопроводительное письмо</b>", reply_markup=kb)
+                    send_message(chat_id, "📝 <b>Сопроводительное письмо</b>\n\nУ вас есть сохранённая вакансия.", reply_markup=kb)
                 else:
                     kb = {"keyboard": [["🆕 Указать вакансию"], ["📝 Без вакансии (общее)"]], "resize_keyboard": True}
-                    send_message(chat_id, "📝 <b>Сопроводительное письмо</b>", reply_markup=kb)
+                    send_message(chat_id, "📝 <b>Сопроводительное письмо</b>\n\nПод вакансию или общее?", reply_markup=kb)
                 return 'ok', 200
-            
             if text == '📋 Использовать прошлую вакансию':
-                if not resume_cache.get(chat_id):
-                    send_message(chat_id, "❌ Сначала загрузи резюме!")
-                    return 'ok', 200
+                if not resume_cache.get(chat_id): send_message(chat_id, "❌ Сначала загрузи резюме!"); return 'ok', 200
                 saved_job = resume_cache.get(f"{chat_id}_last_job")
-                if not saved_job:
-                    send_message(chat_id, "❌ Нет сохранённой вакансии")
-                    return 'ok', 200
+                if not saved_job: send_message(chat_id, "❌ Нет сохранённой вакансии"); return 'ok', 200
                 send_message(chat_id, "📝 Генерирую... ⏳")
                 res = analyze_part(resume_cache[chat_id], "cover_letter", timeout=40, job_desc=saved_job)
                 if res:
                     res = clean_markdown(res)
-                    report_id = str(uuid.uuid4())
-                    report_cache[report_id] = {'type': 'cover', 'letter': res}
+                    report_id = str(uuid.uuid4()); report_cache[report_id] = {'type': 'cover', 'letter': res}
                     domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
                     kb = {"inline_keyboard": [[{"text": "🌐 Открыть письмо", "url": f"{domain}/report/{report_id}"}]]}
                     send_message(chat_id, "✅ <b>Письмо готово!</b>", reply_markup=kb)
-                else:
-                    send_message(chat_id, "❌ Ошибка генерации")
-                show_post_upload_menu(chat_id)
-                return 'ok', 200
-            
+                else: send_message(chat_id, "❌ Ошибка генерации")
+                show_post_upload_menu(chat_id); return 'ok', 200
             if text in ['🆕 Указать новую вакансию', '🆕 Указать вакансию']:
-                if not resume_cache.get(chat_id):
-                    send_message(chat_id, "❌ Сначала загрузи резюме!")
-                    return 'ok', 200
+                if not resume_cache.get(chat_id): send_message(chat_id, "❌ Сначала загрузи резюме!"); return 'ok', 200
                 resume_cache[f"{chat_id}_mode"] = "cover_letter_job"
-                send_message(chat_id, "📋 Отправьте текст вакансии:")
-                return 'ok', 200
-            
+                send_message(chat_id, "📋 Отправьте текст вакансии:"); return 'ok', 200
             if text == '📝 Без вакансии (общее)':
-                if not resume_cache.get(chat_id):
-                    send_message(chat_id, "❌ Сначала загрузи резюме!")
-                    return 'ok', 200
+                if not resume_cache.get(chat_id): send_message(chat_id, "❌ Сначала загрузи резюме!"); return 'ok', 200
                 send_message(chat_id, "📝 Генерирую... ⏳")
                 res = analyze_part(resume_cache[chat_id], "cover_letter", timeout=40, job_desc=None)
                 if res:
                     res = clean_markdown(res)
-                    report_id = str(uuid.uuid4())
-                    report_cache[report_id] = {'type': 'cover', 'letter': res}
+                    report_id = str(uuid.uuid4()); report_cache[report_id] = {'type': 'cover', 'letter': res}
                     domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
                     kb = {"inline_keyboard": [[{"text": "🌐 Открыть письмо", "url": f"{domain}/report/{report_id}"}]]}
                     send_message(chat_id, "✅ <b>Письмо готово!</b>", reply_markup=kb)
-                else:
-                    send_message(chat_id, "❌ Ошибка генерации")
-                show_post_upload_menu(chat_id)
-                return 'ok', 200
-            
+                else: send_message(chat_id, "❌ Ошибка генерации")
+                show_post_upload_menu(chat_id); return 'ok', 200
             if resume_cache.get(f"{chat_id}_mode") == "cover_letter_job":
                 job_desc = text[:3000]
                 resume_cache[f"{chat_id}_last_job"] = job_desc
@@ -489,30 +406,22 @@ JSON:"""
                 res = analyze_part(resume_cache[chat_id], "cover_letter", timeout=40, job_desc=job_desc)
                 if res:
                     res = clean_markdown(res)
-                    report_id = str(uuid.uuid4())
-                    report_cache[report_id] = {'type': 'cover', 'letter': res}
+                    report_id = str(uuid.uuid4()); report_cache[report_id] = {'type': 'cover', 'letter': res}
                     domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
                     kb = {"inline_keyboard": [[{"text": "🌐 Открыть письмо", "url": f"{domain}/report/{report_id}"}]]}
                     send_message(chat_id, "✅ <b>Письмо готово!</b>", reply_markup=kb)
-                else:
-                    send_message(chat_id, "❌ Ошибка генерации")
+                else: send_message(chat_id, "❌ Ошибка генерации")
                 resume_cache[f"{chat_id}_mode"] = None
-                show_post_upload_menu(chat_id)
-                return 'ok', 200
-            
+                show_post_upload_menu(chat_id); return 'ok', 200
             if text == '📊 Получить отчет':
                 rtext = resume_cache.get(chat_id)
-                if not rtext:
-                    send_message(chat_id, "❌ Сначала загрузи резюме")
-                    return 'ok', 200
+                if not rtext: send_message(chat_id, "❌ Сначала загрузи резюме"); return 'ok', 200
                 send_message(chat_id, "🧠 HR-эксперт анализирует... ⏳")
                 logger.info(f"Starting full_report analysis for user {chat_id}, text length: {len(rtext)}")
-                res = analyze_part(rtext, "full_report", timeout=120)
+                res = analyze_part(rtext, "full_report", timeout=90)
                 d = extract_json(res)
-                if not d:
-                    send_message(chat_id, "❌ Не удалось сформировать отчет.")
-                    return 'ok', 200
-                logger.info(f"Report generated: ATS={d.get('ats_score')}, Overall={d.get('overall_score')}")
+                if not d: send_message(chat_id, "❌ Не удалось сформировать отчет."); return 'ok', 200
+                logger.info(f"Report generated for user {chat_id}: ATS={d.get('ats_score')}, Overall={d.get('overall_score')}")
                 report_id = str(uuid.uuid4())
                 save_analysis(chat_id, rtext[:10000], d.get('ats_score', 0), d.get('overall_score', 0), "full_report")
                 report_cache[report_id] = {
@@ -531,10 +440,8 @@ JSON:"""
                 kb = {"inline_keyboard": [[{"text": "🌐 Открыть полный отчет", "url": f"{domain}/report/{report_id}"}]]}
                 send_message(chat_id, "✅ <b>Отчет готов!</b>\nОтметьте нужные правки и нажмите «Сгенерировать» в отчете.", reply_markup=kb)
                 return 'ok', 200
-            
             return 'ok', 200
         except Exception as e:
             logger.error(f"Crash: {e}", exc_info=True)
-            if chat_id:
-                send_message(chat_id, f"❌ Ошибка: {str(e)[:100]}")
+            if chat_id: send_message(chat_id, f"❌ Ошибка: {str(e)[:100]}")
             return 'error', 500
