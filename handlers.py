@@ -441,7 +441,7 @@ JSON:"""
                 domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
                 kb = {"inline_keyboard": [[{"text": "🌐 Открыть полный отчет", "url": f"{domain}/report/{report_id}"}]]}
                 share_text = "🤖 Проверь своё резюме на ATS-совместимость с помощью AI!\n\nЗагружай PDF и получай чек-лист правок + улучшенное резюме.\n\n👉 @ResumeEasyBot"
-                share_url = f"https://t.me/share/url?url=https://t.me/ResumeEasyBot&text={requests.utils.quote(share_text)}"
+                share_url = f"https://t.me/share/url?url=https://t.me/ResumeEasyBot&text={req.utils.quote(share_text)}"
                 kb = {"inline_keyboard": [
                     [{"text": "🌐 Открыть полный отчет", "url": f"{domain}/report/{report_id}"}],
                     [{"text": "📤 Поделиться с другом", "url": share_url}]
