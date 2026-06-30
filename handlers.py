@@ -440,7 +440,13 @@ JSON:"""
                 }
                 domain = os.environ.get("RAILWAY_PUBLIC_DOMAIN") or request.host_url.rstrip('/')
                 kb = {"inline_keyboard": [[{"text": "🌐 Открыть полный отчет", "url": f"{domain}/report/{report_id}"}]]}
-                send_message(chat_id, "✅ <b>Отчет готов!</b>\nОтметьте нужные правки и нажмите «Сгенерировать» в отчете.", reply_markup=kb)
+                share_text = "🤖 Проверь своё резюме на ATS-совместимость с помощью AI!\n\nЗагружай PDF и получай чек-лист правок + улучшенное резюме.\n\n👉 @ResumeEasyBot"
+                share_url = f"https://t.me/share/url?url=https://t.me/ResumeEasyBot&text={requests.utils.quote(share_text)}"
+                kb = {"inline_keyboard": [
+                    [{"text": "🌐 Открыть полный отчет", "url": f"{domain}/report/{report_id}"}],
+                    [{"text": "📤 Поделиться с другом", "url": share_url}]
+                ]}
+                send_message(chat_id, "✅ <b>Отчет готов!</b>\nОтметьте нужные правки и нажмите «Сгенерировать» в отчете.\n\nПонравился бот? Поделитесь с другом! 🚀", reply_markup=kb)
                 return 'ok', 200
             return 'ok', 200
         except Exception as e:
